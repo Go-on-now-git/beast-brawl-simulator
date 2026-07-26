@@ -149,3 +149,52 @@ Players.PlayerAdded:Connect(function(player)
 end)
 
 print("[AdminCommands] 👑 Tremston admin commands active!")
+
+-- Admin GUI RemoteEvent (for panel button clicks)
+local AdminExec = Instance.new("RemoteEvent")
+AdminExec.Name = "AdminExec"
+AdminExec.Parent = ReplicatedStorage
+
+AdminExec.OnServerEvent:Connect(function(player, cmd, args)
+	if not isAdmin(player) then return end
+	-- Reconstruct chat message and reuse existing handler
+	local msg = cmd
+	for _, a in ipairs(args or {}) do msg = msg .. " " .. tostring(a) end
+	-- Fire through existing chat handler by triggering it directly
+	local target = findPlayer(args[1] or "")
+	local amount = tonumber(args[2] or args[3] or "0") or 0
+
+	if cmd == ":give" then
+		if not _G.playerTokens then _G.playerTokens = {} end
+		if target then
+			_G.playerTokens[target.UserId] = (_G.playerTokens[target.UserId] or 0) + amount
+			local cf = ReplicatedStorage:FindFirstChild("Casino")
+			if cf then local tu=cf:FindFirstChild("TokenUpdate"); if tu then tu:FireClient(target, _G.playerTokens[target.UserId]) end end
+			notify(player, "✅ Gave "..amount.." tokens to "..target.Name)
+		end
+	elseif cmd == ":god" and target then
+		if target.Character then local h=target.Character:FindFirstChildOfClass("Humanoid"); if h then h.MaxHealth=math.huge; h.Health=math.huge end end
+		notify(player, "⚡ God: "..target.Name)
+	elseif cmd == ":heal" and target then
+		if target.Character then local h=target.Character:FindFirstChildOfClass("Humanoid"); if h then h.Health=h.MaxHealth end end
+		notify(player, "❤️ Healed: "..target.Name)
+	elseif cmd == ":kill" and target then
+		if target.Character then local h=target.Character:FindFirstChildOfClass("Humanoid"); if h then h.Health=0 end end
+		notify(player, "💀 Killed: "..target.Name)
+	elseif cmd == ":kick" and target then
+		target:Kick("Kicked by admin."); notify(player, "👟 Kicked: "..target.Name)
+	elseif cmd == ":speed" and target then
+		if target.Character then local h=target.Character:FindFirstChildOfClass("Humanoid"); if h then h.WalkSpeed=math.clamp(amount,0,200) end end
+		notify(player, "👟 Speed "..amount..": "..target.Name)
+	elseif cmd == ":tp" and target then
+		if target.Character and player.Character then
+			local tr=target.Character:FindFirstChild("HumanoidRootPart"); local pr=player.Character:FindFirstChild("HumanoidRootPart")
+			if tr and pr then tr.CFrame=pr.CFrame+Vector3.new(3,0,0) end
+		end
+		notify(player, "🌀 TP'd: "..target.Name)
+	elseif cmd == ":announce" then
+		local msg2 = table.concat(args," ")
+		for _,p in ipairs(Players:GetPlayers()) do notify(p,"📢 "..msg2) end
+		notify(player,"📢 Announced!")
+	end
+end)
