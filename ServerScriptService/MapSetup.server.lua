@@ -1,245 +1,415 @@
--- MapSetup: Brain Rot Beast Brawl Map Generator
--- Generates terrain, trees, obstacles, decorations, and brain rot vibes
+-- MapSetup: Beast Brawl VIRAL MAP — Cell Games Arena + Trending Roblox Meta 2026
+-- Trending: brainrot collectibles, steal-defend, luck-based RNG, anime fighter arena, idle-grow
 
 local workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
 
-math.randomseed(12345)
+math.randomseed(os.time())
 
--- BASEPLATE
+-- ============================================================
+-- LIGHTING — Anime fighter vibes
+-- ============================================================
+Lighting.Brightness = 2
+Lighting.ClockTime = 14
+Lighting.FogEnd = 800
+Lighting.FogColor = Color3.fromRGB(180, 120, 255)
+Lighting.Ambient = Color3.fromRGB(80, 0, 120)
+Lighting.OutdoorAmbient = Color3.fromRGB(120, 60, 180)
+
+local bloom = Instance.new("BloomEffect")
+bloom.Intensity = 0.8
+bloom.Size = 24
+bloom.Threshold = 0.95
+bloom.Parent = Lighting
+
+local colorCorrect = Instance.new("ColorCorrectionEffect")
+colorCorrect.Saturation = 0.4
+colorCorrect.Contrast = 0.2
+colorCorrect.Parent = Lighting
+
+-- ============================================================
+-- BASEPLATE — Arena floor with grid lines
+-- ============================================================
 local baseplate = Instance.new("Part")
 baseplate.Name = "Baseplate"
 baseplate.Anchored = true
 baseplate.CanCollide = true
 baseplate.Size = Vector3.new(512, 4, 512)
 baseplate.CFrame = CFrame.new(0, -2, 0)
-baseplate.Material = Enum.Material.Grass
-baseplate.BrickColor = BrickColor.new("Bright green")
+baseplate.Material = Enum.Material.SmoothPlastic
+baseplate.Color = Color3.fromRGB(15, 15, 30)
 baseplate.TopSurface = Enum.SurfaceType.Smooth
-baseplate.BottomSurface = Enum.SurfaceType.Smooth
 baseplate.Locked = true
 baseplate.Parent = workspace
 
--- SPAWN LOCATION
+-- Neon grid overlay
+for i = -10, 10 do
+	local line = Instance.new("Part")
+	line.Anchored = true
+	line.CanCollide = false
+	line.Size = Vector3.new(512, 0.2, 1)
+	line.CFrame = CFrame.new(0, -0.1, i * 25)
+	line.Color = Color3.fromRGB(0, 100, 255)
+	line.Material = Enum.Material.Neon
+	line.Transparency = 0.6
+	line.Parent = workspace
+
+	local line2 = Instance.new("Part")
+	line2.Anchored = true
+	line2.CanCollide = false
+	line2.Size = Vector3.new(1, 0.2, 512)
+	line2.CFrame = CFrame.new(i * 25, -0.1, 0)
+	line2.Color = Color3.fromRGB(0, 100, 255)
+	line2.Material = Enum.Material.Neon
+	line2.Transparency = 0.6
+	line2.Parent = workspace
+end
+
+-- ============================================================
+-- SPAWN PLATFORM
+-- ============================================================
 local spawn = Instance.new("SpawnLocation")
 spawn.Name = "SpawnLocation"
 spawn.Anchored = true
-spawn.Size = Vector3.new(10, 1, 10)
+spawn.Size = Vector3.new(12, 1, 12)
 spawn.CFrame = CFrame.new(0, 0.5, 0)
 spawn.Neutral = true
 spawn.Duration = 0
-spawn.BrickColor = BrickColor.new("Bright yellow")
+spawn.Color = Color3.fromRGB(255, 200, 0)
 spawn.Material = Enum.Material.Neon
 spawn.Parent = workspace
 
--- Floating "BEAST BRAWL" sign at spawn
-local sign = Instance.new("Part")
-sign.Name = "TitleSign"
-sign.Anchored = true
-sign.Size = Vector3.new(40, 8, 1)
-sign.CFrame = CFrame.new(0, 20, -15)
-sign.BrickColor = BrickColor.new("Hot pink")
-sign.Material = Enum.Material.Neon
-sign.Parent = workspace
+-- ============================================================
+-- CELL GAMES ARENA — Dragon Ball Z iconic ring
+-- ============================================================
+local arenaFolder = Instance.new("Folder")
+arenaFolder.Name = "CellGamesArena"
+arenaFolder.Parent = workspace
 
-local signGui = Instance.new("SurfaceGui")
-signGui.Face = Enum.NormalId.Front
-signGui.Parent = sign
+-- Main fighting platform
+local platform = Instance.new("Part")
+platform.Name = "CellPlatform"
+platform.Anchored = true
+platform.Size = Vector3.new(100, 3, 100)
+platform.CFrame = CFrame.new(0, 1.5, -150)
+platform.Material = Enum.Material.Concrete
+platform.Color = Color3.fromRGB(200, 180, 140)
+platform.TopSurface = Enum.SurfaceType.Smooth
+platform.Parent = arenaFolder
 
-local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(1, 0, 1, 0)
-titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "🦁 BEAST BRAWL 🦁"
-titleLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
-titleLabel.TextScaled = true
-titleLabel.Font = Enum.Font.GothamBold
-titleLabel.Parent = signGui
+-- Pillar corners (Cell Games style)
+local pillarPositions = {
+	{-48, -150}, {48, -150}, {-48, -102}, {48, -102},
+}
+for _, pos in ipairs(pillarPositions) do
+	local pillar = Instance.new("Part")
+	pillar.Anchored = true
+	pillar.Size = Vector3.new(6, 30, 6)
+	pillar.CFrame = CFrame.new(pos[1], 15, pos[2])
+	pillar.Material = Enum.Material.Concrete
+	pillar.Color = Color3.fromRGB(180, 160, 120)
+	pillar.Parent = arenaFolder
 
--- Tween sign color (brain rot rainbow effect)
-spawn(function()
-	local colors = {
-		Color3.fromRGB(255, 0, 128),
-		Color3.fromRGB(0, 255, 128),
-		Color3.fromRGB(128, 0, 255),
-		Color3.fromRGB(255, 128, 0),
-		Color3.fromRGB(0, 128, 255),
-	}
-	local i = 1
-	while true do
-		local tween = TweenService:Create(sign, TweenInfo.new(0.5), {Color = colors[i]})
-		tween:Play()
-		tween.Completed:Wait()
-		i = i % #colors + 1
+	-- Pillar cap
+	local cap = Instance.new("Part")
+	cap.Anchored = true
+	cap.Size = Vector3.new(8, 2, 8)
+	cap.CFrame = CFrame.new(pos[1], 31, pos[2])
+	cap.Material = Enum.Material.Concrete
+	cap.Color = Color3.fromRGB(150, 130, 100)
+	cap.Parent = arenaFolder
+end
+
+-- Ring ropes (neon)
+local ropeColors = {Color3.fromRGB(255,0,0), Color3.fromRGB(255,255,255), Color3.fromRGB(0,0,255)}
+for i, col in ipairs(ropeColors) do
+	local h = 6 + i * 3
+	-- North/South ropes
+	for _, side in ipairs({{-150, 0}, {-102, 0}}) do
+		local rope = Instance.new("Part")
+		rope.Anchored = true
+		rope.CanCollide = false
+		rope.Size = Vector3.new(100, 0.5, 0.5)
+		rope.CFrame = CFrame.new(0, h, side[1])
+		rope.Color = col
+		rope.Material = Enum.Material.Neon
+		rope.Parent = arenaFolder
 	end
-end)
-
--- TREE FUNCTION
-local function makeTree(x, z, height, trunkColor, leafColor)
-	height = height or math.random(8, 16)
-	trunkColor = trunkColor or BrickColor.new("Reddish brown")
-	leafColor = leafColor or BrickColor.new("Bright green")
-
-	local trunk = Instance.new("Part")
-	trunk.Anchored = true
-	trunk.Size = Vector3.new(2, height, 2)
-	trunk.CFrame = CFrame.new(x, height/2, z)
-	trunk.BrickColor = trunkColor
-	trunk.Material = Enum.Material.Wood
-	trunk.Parent = workspace
-
-	-- 3 layers of leaves
-	for i = 1, 3 do
-		local leaves = Instance.new("Part")
-		leaves.Anchored = true
-		local s = 10 - (i * 2)
-		leaves.Size = Vector3.new(s, s * 0.6, s)
-		leaves.CFrame = CFrame.new(x, height + (i * 3) - 2, z)
-		leaves.Shape = Enum.PartType.Ball
-		leaves.BrickColor = leafColor
-		leaves.Material = Enum.Material.Neon
-		leaves.Parent = workspace
+	-- East/West ropes
+	for _, side in ipairs({{-48, -126}, {48, -126}}) do
+		local rope = Instance.new("Part")
+		rope.Anchored = true
+		rope.CanCollide = false
+		rope.Size = Vector3.new(0.5, 0.5, 100)
+		rope.CFrame = CFrame.new(side[1], h, side[2])
+		rope.Color = col
+		rope.Material = Enum.Material.Neon
+		rope.Parent = arenaFolder
 	end
 end
 
--- BRAIN ROT TREES — neon colors
-local leafColors = {
-	BrickColor.new("Lime green"),
-	BrickColor.new("Bright blue"),
-	BrickColor.new("Hot pink"),
-	BrickColor.new("Bright orange"),
-	BrickColor.new("Cyan"),
-}
+-- "CELL GAMES ARENA" sign above the ring
+local arenaSigns = Instance.new("Part")
+arenaSigns.Anchored = true
+arenaSigns.CanCollide = false
+arenaSigns.Size = Vector3.new(60, 8, 1)
+arenaSigns.CFrame = CFrame.new(0, 45, -100)
+arenaSigns.Color = Color3.fromRGB(0, 200, 100)
+arenaSigns.Material = Enum.Material.Neon
+arenaSigns.Parent = arenaFolder
 
-for i = 1, 60 do
-	local angle = math.random() * math.pi * 2
-	local dist = math.random(30, 200)
-	local x = math.cos(angle) * dist
-	local z = math.sin(angle) * dist
-	local leafColor = leafColors[math.random(#leafColors)]
-	makeTree(x, z, math.random(8, 20), nil, leafColor)
-end
+local arenaSg = Instance.new("SurfaceGui")
+arenaSg.Face = Enum.NormalId.Front
+arenaSg.Parent = arenaSigns
 
--- FLOATING ISLANDS (brain rot vibes)
-local islandColors = {
-	BrickColor.new("Hot pink"),
-	BrickColor.new("Cyan"),
-	BrickColor.new("Bright yellow"),
-	BrickColor.new("Lime green"),
-}
-for i = 1, 8 do
-	local island = Instance.new("Part")
-	island.Anchored = true
-	island.Size = Vector3.new(math.random(15, 40), 5, math.random(15, 40))
-	island.CFrame = CFrame.new(
-		math.random(-150, 150),
-		math.random(40, 80),
-		math.random(-150, 150)
-	)
-	island.BrickColor = islandColors[math.random(#islandColors)]
-	island.Material = Enum.Material.Neon
-	island.Parent = workspace
+local arenaLbl = Instance.new("TextLabel")
+arenaLbl.Size = UDim2.new(1, 0, 1, 0)
+arenaLbl.BackgroundTransparency = 1
+arenaLbl.Text = "⚔️ CELL GAMES ARENA ⚔️"
+arenaLbl.TextColor3 = Color3.fromRGB(255, 255, 0)
+arenaLbl.TextScaled = true
+arenaLbl.Font = Enum.Font.GothamBold
+arenaLbl.Parent = arenaSg
 
-	-- Tree on island
-	makeTree(island.CFrame.X, island.CFrame.Z, 6, nil, leafColors[math.random(#leafColors)])
-end
+-- ============================================================
+-- TRENDING: BRAINROT COLLECTIBLE ZONE
+-- ============================================================
+local brainrotZone = Instance.new("Part")
+brainrotZone.Name = "BrainrotZone"
+brainrotZone.Anchored = true
+brainrotZone.Size = Vector3.new(80, 1, 80)
+brainrotZone.CFrame = CFrame.new(150, 0, 0)
+brainrotZone.Color = Color3.fromRGB(255, 0, 200)
+brainrotZone.Material = Enum.Material.Neon
+brainrotZone.Transparency = 0.5
+brainrotZone.CanCollide = true
+brainrotZone.Parent = workspace
 
--- RANDOM BOULDERS / OBSTACLES
-for i = 1, 30 do
-	local rock = Instance.new("Part")
-	rock.Anchored = true
-	local s = math.random(3, 10)
-	rock.Size = Vector3.new(s, s * 0.7, s)
-	rock.CFrame = CFrame.new(math.random(-200, 200), s * 0.35, math.random(-200, 200))
-	rock.BrickColor = BrickColor.new("Dark grey")
-	rock.Material = Enum.Material.Rock
-	rock.Shape = Enum.PartType.Ball
-	rock.Parent = workspace
-end
+local bz = Instance.new("Part")
+bz.Anchored = true
+bz.CanCollide = false
+bz.Size = Vector3.new(60, 8, 1)
+bz.CFrame = CFrame.new(150, 10, -38)
+bz.Color = Color3.fromRGB(255, 0, 200)
+bz.Material = Enum.Material.Neon
+bz.Parent = workspace
 
--- NEON FLOOR RINGS (brain rot circles)
-local ringColors = {Color3.fromRGB(255,0,255), Color3.fromRGB(0,255,255), Color3.fromRGB(255,255,0)}
-for i = 1, 3 do
-	local ring = Instance.new("Part")
-	ring.Anchored = true
-	local r = i * 60
-	ring.Size = Vector3.new(r * 2 + 2, 0.5, r * 2 + 2)
-	ring.CFrame = CFrame.new(0, -1.5, 0)
-	ring.BrickColor = BrickColor.new("Bright yellow")
-	ring.Material = Enum.Material.Neon
-	ring.Transparency = 0.5
-	ring.CanCollide = false
-	ring.Shape = Enum.PartType.Cylinder
-	ring.Parent = workspace
+local bzSg = Instance.new("SurfaceGui")
+bzSg.Face = Enum.NormalId.Front
+bzSg.Parent = bz
 
-	-- Tween color
-	local col = ringColors[i]
-	spawn(function()
-		while true do
-			local t = TweenService:Create(ring, TweenInfo.new(1 + i * 0.5), {Color = col, Transparency = 0.8})
-			t:Play(); t.Completed:Wait()
-			local t2 = TweenService:Create(ring, TweenInfo.new(1 + i * 0.5), {Color = Color3.fromRGB(255,255,255), Transparency = 0.3})
-			t2:Play(); t2.Completed:Wait()
-		end
-	end)
-end
+local bzLbl = Instance.new("TextLabel")
+bzLbl.Size = UDim2.new(1, 0, 1, 0)
+bzLbl.BackgroundTransparency = 1
+bzLbl.Text = "🧠 BRAINROT ZONE 🧠"
+bzLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+bzLbl.TextScaled = true
+bzLbl.Font = Enum.Font.GothamBold
+bzLbl.Parent = bzSg
 
--- RANDOM BRAIN ROT SIGNS
-local brainrotText = {
-	"💀 SKILL ISSUE 💀",
-	"⚡ NO CAP FR FR ⚡",
-	"🐺 ALPHA BRAWLER 🐺",
-	"😤 GET REKT 😤",
-	"🔥 BUSSIN HITS 🔥",
-	"😂 L + RATIO 😂",
-	"🦁 BEAST MODE 🦁",
-	"💅 SLAY THE MAP 💅",
-}
+-- Brainrot collectible orbs
+local brainrotNames = {"Skibidi","Sigma","Rizz","Gyatt","Bussin","Slay","NoCap","Delulu","Mid","Valid"}
+for i, name in ipairs(brainrotNames) do
+	local angle = (i / #brainrotNames) * math.pi * 2
+	local r = 25
+	local orb = Instance.new("Part")
+	orb.Name = "Brainrot_" .. name
+	orb.Anchored = true
+	orb.CanCollide = false
+	orb.Shape = Enum.PartType.Ball
+	orb.Size = Vector3.new(5, 5, 5)
+	orb.CFrame = CFrame.new(150 + math.cos(angle) * r, 5, math.sin(angle) * r)
+	orb.Material = Enum.Material.Neon
+	orb.Color = Color3.fromHSV(i/#brainrotNames, 1, 1)
+	orb.Parent = workspace
 
-for i = 1, 8 do
-	local angle = (i / 8) * math.pi * 2
-	local dist = math.random(80, 140)
-	local x = math.cos(angle) * dist
-	local z = math.sin(angle) * dist
-
-	local signPart = Instance.new("Part")
-	signPart.Anchored = true
-	signPart.Size = Vector3.new(20, 6, 1)
-	signPart.CFrame = CFrame.new(x, 8, z) * CFrame.fromEulerAnglesXYZ(0, angle + math.pi, 0)
-	signPart.BrickColor = BrickColor.new("Really black")
-	signPart.Material = Enum.Material.Neon
-	signPart.Parent = workspace
-
-	local sg = Instance.new("SurfaceGui")
-	sg.Face = Enum.NormalId.Front
-	sg.Parent = signPart
+	-- Label
+	local bg = Instance.new("BillboardGui")
+	bg.Size = UDim2.new(0, 80, 0, 30)
+	bg.StudsOffset = Vector3.new(0, 4, 0)
+	bg.AlwaysOnTop = false
+	bg.Parent = orb
 
 	local lbl = Instance.new("TextLabel")
 	lbl.Size = UDim2.new(1, 0, 1, 0)
 	lbl.BackgroundTransparency = 1
-	lbl.Text = brainrotText[i]
-	lbl.TextColor3 = Color3.fromRGB(255, 255, 0)
+	lbl.Text = name
+	lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
 	lbl.TextScaled = true
 	lbl.Font = Enum.Font.GothamBold
-	lbl.Parent = sg
+	lbl.Parent = bg
+
+	-- Float animation
+	spawn(function()
+		while orb and orb.Parent do
+			local t = TweenService:Create(orb, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+				CFrame = orb.CFrame + Vector3.new(0, 3, 0)
+			})
+			t:Play()
+			wait(3)
+		end
+	end)
 end
 
--- BORDER WALLS (so you don't walk off)
-local borders = {
-	{Vector3.new(512, 20, 4), Vector3.new(0, 10, 258)},
-	{Vector3.new(512, 20, 4), Vector3.new(0, 10, -258)},
-	{Vector3.new(4, 20, 512), Vector3.new(258, 10, 0)},
-	{Vector3.new(4, 20, 512), Vector3.new(-258, 10, 0)},
+-- ============================================================
+-- TRENDING: RNG LUCK MACHINE
+-- ============================================================
+local rngMachine = Instance.new("Part")
+rngMachine.Name = "RNGMachine"
+rngMachine.Anchored = true
+rngMachine.Size = Vector3.new(15, 20, 15)
+rngMachine.CFrame = CFrame.new(-150, 10, 0)
+rngMachine.Color = Color3.fromRGB(255, 200, 0)
+rngMachine.Material = Enum.Material.Neon
+rngMachine.Parent = workspace
+
+local rngSg = Instance.new("SurfaceGui")
+rngSg.Face = Enum.NormalId.Front
+rngSg.Parent = rngMachine
+
+local rngLbl = Instance.new("TextLabel")
+rngLbl.Size = UDim2.new(1, 0, 1, 0)
+rngLbl.BackgroundTransparency = 1
+rngLbl.Text = "🎰 RNG\nMACHINE\n🍀 SPIN!"
+rngLbl.TextColor3 = Color3.fromRGB(0, 0, 0)
+rngLbl.TextScaled = true
+rngLbl.Font = Enum.Font.GothamBold
+rngLbl.Parent = rngSg
+
+-- ============================================================
+-- TRENDING: ANIME FIGHTER PILLARS (Blade Ball / Type Soul vibes)
+-- ============================================================
+local pillarSpots = {
+	{80, 80}, {-80, 80}, {80, -80}, {-80, -80},
+	{0, 120}, {0, -120}, {120, 0}, {-120, 0}
 }
-for _, b in ipairs(borders) do
-	local wall = Instance.new("Part")
-	wall.Anchored = true
-	wall.Size = b[1]
-	wall.CFrame = CFrame.new(b[2])
-	wall.Transparency = 0.7
-	wall.BrickColor = BrickColor.new("Hot pink")
-	wall.Material = Enum.Material.Neon
-	wall.CanCollide = true
-	wall.Parent = workspace
+local pillarColors = {
+	Color3.fromRGB(255, 50, 50),
+	Color3.fromRGB(50, 100, 255),
+	Color3.fromRGB(50, 255, 100),
+	Color3.fromRGB(255, 150, 0),
+	Color3.fromRGB(200, 0, 255),
+	Color3.fromRGB(0, 255, 255),
+	Color3.fromRGB(255, 255, 0),
+	Color3.fromRGB(255, 0, 150),
+}
+for i, pos in ipairs(pillarSpots) do
+	local pillar = Instance.new("Part")
+	pillar.Anchored = true
+	pillar.Size = Vector3.new(4, math.random(15, 35), 4)
+	pillar.CFrame = CFrame.new(pos[1], pillar.Size.Y/2, pos[2])
+	pillar.Material = Enum.Material.Neon
+	pillar.Color = pillarColors[i]
+	pillar.Parent = workspace
+
+	-- Glowing orb on top
+	local top = Instance.new("Part")
+	top.Anchored = true
+	top.Shape = Enum.PartType.Ball
+	top.Size = Vector3.new(6, 6, 6)
+	top.CFrame = CFrame.new(pos[1], pillar.Size.Y + 3, pos[2])
+	top.Material = Enum.Material.Neon
+	top.Color = pillarColors[i]
+	top.CanCollide = false
+	top.Parent = workspace
 end
 
-print("[MapSetup] 🦁 Brain Rot Beast Brawl map loaded! #StayAbove")
+-- ============================================================
+-- VIRAL TITLE SIGN (rainbow, animated)
+-- ============================================================
+local titleSign = Instance.new("Part")
+titleSign.Name = "TitleSign"
+titleSign.Anchored = true
+titleSign.CanCollide = false
+titleSign.Size = Vector3.new(60, 10, 1)
+titleSign.CFrame = CFrame.new(0, 30, 0)
+titleSign.Material = Enum.Material.Neon
+titleSign.Color = Color3.fromRGB(255, 0, 128)
+titleSign.Parent = workspace
+
+local sg = Instance.new("SurfaceGui")
+sg.Face = Enum.NormalId.Front
+sg.Parent = titleSign
+
+local tl = Instance.new("TextLabel")
+tl.Size = UDim2.new(1, 0, 1, 0)
+tl.BackgroundTransparency = 1
+tl.Text = "🦁 BEAST BRAWL SIMULATOR 🦁"
+tl.TextColor3 = Color3.fromRGB(255, 255, 0)
+tl.TextScaled = true
+tl.Font = Enum.Font.GothamBold
+tl.Parent = sg
+
+-- Rainbow tween
+spawn(function()
+	local cols = {
+		Color3.fromRGB(255,0,128), Color3.fromRGB(255,128,0),
+		Color3.fromRGB(0,255,128), Color3.fromRGB(0,128,255),
+		Color3.fromRGB(128,0,255),
+	}
+	local i = 1
+	while true do
+		TweenService:Create(titleSign, TweenInfo.new(0.4), {Color = cols[i]}):Play()
+		wait(0.4)
+		i = i % #cols + 1
+	end
+end)
+
+-- ============================================================
+-- BRAIN ROT SIGNS around map
+-- ============================================================
+local brainrotSigns = {
+	"💀 SKILL ISSUE 💀", "⚡ SIGMA GRINDSET ⚡", "🐺 ALPHA BRAWLER 🐺",
+	"😤 GET REKT 😤", "🔥 BUSSIN HITS 🔥", "😂 L + RATIO 😂",
+	"💅 SLAY THE ARENA 💅", "🎯 NO CAP FR FR 🎯", "🦁 BEAST MODE ON 🦁",
+	"🍀 RNG FAVORED YOU 🍀", "⚔️ CELL GAMES OPEN ⚔️", "🧠 STAY DELULU 🧠",
+}
+for i, txt in ipairs(brainrotSigns) do
+	local angle = (i / #brainrotSigns) * math.pi * 2
+	local dist = 200
+	local sp = Instance.new("Part")
+	sp.Anchored = true
+	sp.CanCollide = false
+	sp.Size = Vector3.new(22, 6, 1)
+	sp.CFrame = CFrame.new(math.cos(angle)*dist, 8, math.sin(angle)*dist) * CFrame.fromEulerAnglesXYZ(0, angle+math.pi, 0)
+	sp.Color = Color3.fromHSV(i/#brainrotSigns, 1, 1)
+	sp.Material = Enum.Material.Neon
+	sp.Parent = workspace
+
+	local ssg = Instance.new("SurfaceGui")
+	ssg.Face = Enum.NormalId.Front
+	ssg.Parent = sp
+
+	local slbl = Instance.new("TextLabel")
+	slbl.Size = UDim2.new(1, 0, 1, 0)
+	slbl.BackgroundTransparency = 1
+	slbl.Text = txt
+	slbl.TextColor3 = Color3.fromRGB(255,255,255)
+	slbl.TextScaled = true
+	slbl.Font = Enum.Font.GothamBold
+	slbl.Parent = ssg
+end
+
+-- ============================================================
+-- BORDER WALLS
+-- ============================================================
+local bords = {
+	{Vector3.new(512,40,4), CFrame.new(0,20,258)},
+	{Vector3.new(512,40,4), CFrame.new(0,20,-258)},
+	{Vector3.new(4,40,512), CFrame.new(258,20,0)},
+	{Vector3.new(4,40,512), CFrame.new(-258,20,0)},
+}
+for _, b in ipairs(bords) do
+	local w = Instance.new("Part")
+	w.Anchored = true
+	w.Size = b[1]
+	w.CFrame = b[2]
+	w.Transparency = 0.8
+	w.Color = Color3.fromRGB(0, 100, 255)
+	w.Material = Enum.Material.Neon
+	w.CanCollide = true
+	w.Parent = workspace
+end
+
+print("[MapSetup] 🦁 Cell Games Arena + Viral Beast Brawl loaded! #StayAbove")
