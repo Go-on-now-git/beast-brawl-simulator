@@ -1,0 +1,1507 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
+<External>null</External><External>nil</External>
+<Item class="DataModel" referent="RBX0">
+<Properties><string name="Name">BeastBrawlSimulator</string></Properties>
+<Item class="Workspace" referent="RBX1"><Properties><string name="Name">Workspace</string></Properties></Item>
+<Item class="ServerScriptService" referent="RBX2"><Properties><string name="Name">ServerScriptService</string></Properties>
+<Item class="Script" referent="RBX100">
+      <Properties>
+        <string name="Name">PlayerData</string>
+        <ProtectedString name="Source"><![CDATA[--[[
+	BEAST BRAWL SIMULATOR - Player Data Management
+	Handles DataStore save/load and player statistics tracking
+]]
+
+local DataStoreService = game:GetService("DataStoreService")
+local Players = game:GetService("Players")
+local GameConfig = require(game.ReplicatedStorage:WaitForChild("GameConfig"))
+
+local PlayerData = {}
+PlayerData.playerStats = {}  -- In-memory cache: {playerId -> playerData}
+
+-- Initialize DataStore
+local playerDataStore = DataStoreService:GetDataStore(GameConfig.PlayerDataStoreName)
+
+-- Default player data structure
+local function getDefaultPlayerData()
+	return {
+		coins = 0,
+		pets = {},  -- {rarity, level} entries
+		level = 1,
+		xp = 0,
+		rebirths = 0,
+		totalDamage = 0,
+		kills = 0,
+		lastSaved = tick()
+	}
+end
+
+-- Load player data from DataStore
+function PlayerData:LoadPlayerData(userId)
+	local success, data = pcall(function()
+		return playerDataStore:GetAsync("Player_" .. userId)
+	end)
+	
+	if success then
+		if data then
+			return data
+		else
+			return getDefaultPlayerData()
+		end
+	else
+		warn("Failed to load data for player " .. userId .. ": " .. tostring(data))
+		return getDefaultPlayerData()
+	end
+end
+
+-- Save player data to DataStore
+function PlayerData:SavePlayerData(userId, data)
+	data.lastSaved = tick()
+	
+	local success, err = pcall(function()
+		playerDataStore:SetAsync("Player_" .. userId, data)
+	end)
+	
+	if not success then
+		warn("Failed to save data for player " .. userId .. ": " .. tostring(err))
+	end
+end
+
+-- Get player stats (from in-memory cache)
+function PlayerData:GetPlayerStats(userId)
+	return self.playerStats[userId] or getDefaultPlayerData()
+end
+
+-- Update player coins
+function PlayerData:AddCoins(userId, amount)
+	if not self.playerStats[userId] then return end
+	self.playerStats[userId].coins = self.playerStats[userId].coins + amount
+end
+
+-- Update total damage
+function PlayerData:AddDamage(userId, amount)
+	if not self.playerStats[userId] then return end
+	self.playerStats[userId].totalDamage = self.playerStats[userId].totalDamage + amount
+end
+
+-- Increment kills
+function PlayerData:AddKill(userId)
+	if not self.playerStats[userId] then return end
+	self.playerStats[userId].kills = self.playerStats[userId].kills + 1
+end
+
+-- Add XP and level up
+function PlayerData:AddXP(userId, amount)
+	if not self.playerStats[userId] then return end
+	
+	local stats = self.playerStats[userId]
+	stats.xp = stats.xp + amount
+	
+	-- Check for level up
+	local totalXPNeeded = 0
+	for i = 1, stats.level - 1 do
+		totalXPNeeded = totalXPNeeded + (GameConfig.LevelXPThresholds[i] or 10000)
+	end
+	
+	while stats.xp >= (GameConfig.LevelXPThresholds[stats.level] or 10000) do
+		stats.xp = stats.xp - (GameConfig.LevelXPThresholds[stats.level] or 10000)
+		stats.level = stats.level + 1
+		-- Emit level up event
+		game.ReplicatedStorage:FindFirstChild("LevelUp"):FireClient(game.Players:FindFirstChild(userId), stats.level)
+	end
+end
+
+-- Add pet to player
+function PlayerData:AddPet(userId, rarity)
+	if not self.playerStats[userId] then return end
+	
+	local pet = {
+		rarity = rarity,
+		level = 1
+	}
+	table.insert(self.playerStats[userId].pets, pet)
+	return pet
+end
+
+-- Get pet damage multiplier
+function PlayerData:GetPetMultiplier(userId)
+	if not self.playerStats[userId] or #self.playerStats[userId].pets == 0 then
+		return 1
+	end
+	
+	local multiplier = 1
+	for _, pet in ipairs(self.playerStats[userId].pets) do
+		local rarityData = GameConfig.PetRarities[pet.rarity]
+		if rarityData then
+			multiplier = multiplier * rarityData.multiplier
+		end
+	end
+	return multiplier
+end
+
+-- Handle rebirth
+function PlayerData:Rebirth(userId)
+	if not self.playerStats[userId] then return false end
+	
+	local stats = self.playerStats[userId]
+	
+	-- Check if player has enough coins
+	if stats.coins < GameConfig.RebirthCost then
+		return false
+	end
+	
+	-- Deduct coins and increase rebirth count
+	stats.coins = stats.coins - GameConfig.RebirthCost
+	stats.rebirths = stats.rebirths + 1
+	
+	-- Reset but keep rebirths
+	local rebirths = stats.rebirths
+	stats = getDefaultPlayerData()
+	stats.rebirths = rebirths
+	
+	self.playerStats[userId] = stats
+	return true
+end
+
+-- Handle player join
+Players.PlayerAdded:Connect(function(player)
+	local userId = player.UserId
+	
+	-- Load data from DataStore
+	local data = PlayerData:LoadPlayerData(userId)
+	PlayerData.playerStats[userId] = data
+	
+	print("Loaded data for player: " .. player.Name .. " (ID: " .. userId .. ")")
+end)
+
+-- Handle player leave (autosave)
+Players.PlayerRemoving:Connect(function(player)
+	local userId = player.UserId
+	
+	if PlayerData.playerStats[userId] then
+		PlayerData:SavePlayerData(userId, PlayerData.playerStats[userId])
+		PlayerData.playerStats[userId] = nil
+		print("Saved and removed player data: " .. player.Name)
+	end
+end)
+
+-- Autosave every 30 seconds
+game:GetService("RunService").Heartbeat:Connect(function()
+	local now = tick()
+	for userId, stats in pairs(PlayerData.playerStats) do
+		if now - stats.lastSaved > 30 then
+			PlayerData:SavePlayerData(userId, stats)
+		end
+	end
+end)
+
+return PlayerData
+]]></ProtectedString>
+        <bool name="Disabled">false</bool>
+      </Properties>
+    </Item>
+<Item class="Script" referent="RBX101">
+      <Properties>
+        <string name="Name">PetSystem</string>
+        <ProtectedString name="Source"><![CDATA[--[[
+	BEAST BRAWL SIMULATOR - Pet System
+	Handles RNG pet machine, pet assignment, and damage multipliers
+]]
+
+local Players = game:GetService("Players")
+local GameConfig = require(game.ReplicatedStorage:WaitForChild("GameConfig"))
+local PlayerData = require(game.ServerScriptService:WaitForChild("PlayerData"))
+
+local PetSystem = {}
+
+-- RemoteEvent for spinning the pet machine (client -> server)
+local spinPetRemote = Instance.new("RemoteEvent")
+spinPetRemote.Name = "SpinPet"
+spinPetRemote.Parent = game.ReplicatedStorage
+
+-- RemoteEvent for displaying pet spin result (server -> client)
+local petSpinResultRemote = Instance.new("RemoteFunction")
+petSpinResultRemote.Name = "PetSpinResult"
+petSpinResultRemote.Parent = game.ReplicatedStorage
+
+-- Weighted random pet selection
+local function getWeightedRarity()
+	local roll = math.random(1, 100)
+	local cumulative = 0
+	
+	for _, rarityName in ipairs(GameConfig.PetRarityList) do
+		local rarity = GameConfig.PetRarities[rarityName]
+		cumulative = cumulative + rarity.weight
+		
+		if roll <= cumulative then
+			return rarityName
+		end
+	end
+	
+	return "Common"  -- Fallback
+end
+
+-- Spin the pet machine
+local function spinPet(player)
+	local userId = player.UserId
+	local stats = PlayerData:GetPlayerStats(userId)
+	
+	-- Free spins are available (no cost)
+	-- Add 10 coins per spin if desired, or make it truly free
+	
+	-- Get random pet
+	local rarity = getWeightedRarity()
+	
+	-- Add pet to player
+	PlayerData:AddPet(userId, rarity)
+	
+	-- Get rarity color and info
+	local rarityData = GameConfig.PetRarities[rarity]
+	
+	-- Send result to client
+	return {
+		rarity = rarity,
+		displayName = rarityData.displayName,
+		color = rarityData.color,
+		multiplier = rarityData.multiplier,
+		petsCount = #stats.pets + 1
+	}
+end
+
+-- Handle spin pet requests
+spinPetRemote.OnServerEvent:Connect(function(player)
+	local result = spinPet(player)
+	petSpinResultRemote:InvokeClient(player, result)
+end)
+
+-- Get current pet multiplier for a player
+function PetSystem:GetPlayerMultiplier(userId)
+	return PlayerData:GetPetMultiplier(userId)
+end
+
+-- Get player's pets
+function PetSystem:GetPlayerPets(userId)
+	local stats = PlayerData:GetPlayerStats(userId)
+	return stats.pets or {}
+end
+
+-- Test function: add free pet to player (for testing)
+function PetSystem:GivePet(userId, rarity)
+	local player = Players:FindFirstChild(tostring(userId))
+	if player then
+		return PlayerData:AddPet(userId, rarity)
+	end
+	return nil
+end
+
+-- Initialize pet system on game start
+print("Pet System initialized")
+
+return PetSystem
+]]></ProtectedString>
+        <bool name="Disabled">false</bool>
+      </Properties>
+    </Item>
+<Item class="Script" referent="RBX102">
+      <Properties>
+        <string name="Name">GameManager</string>
+        <ProtectedString name="Source"><![CDATA[--[[
+	BEAST BRAWL SIMULATOR - Game Manager
+	Main game loop, enemy spawning, combat resolution, coin rewards
+]]
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local GameConfig = require(game.ReplicatedStorage:WaitForChild("GameConfig"))
+local PlayerData = require(game.ServerScriptService:WaitForChild("PlayerData"))
+local PetSystem = require(game.ServerScriptService:WaitForChild("PetSystem"))
+
+local GameManager = {}
+GameManager.enemies = {}  -- Track active enemies
+GameManager.playerCombat = {}  -- Track player combat state
+
+-- Create enemy folder if not exists
+local enemiesFolder = Workspace:FindFirstChild("Enemies")
+if not enemiesFolder then
+	enemiesFolder = Instance.new("Folder")
+	enemiesFolder.Name = "Enemies"
+	enemiesFolder.Parent = Workspace
+end
+
+-- Create an enemy instance
+local function createEnemy()
+	local enemy = Instance.new("Part")
+	enemy.Name = "Enemy"
+	enemy.Shape = Enum.PartType.Ball
+	enemy.Size = Vector3.new(2, 2, 2)
+	enemy.Color = Color3.fromRGB(255, 0, 0)
+	enemy.CanCollide = true
+	enemy.TopSurface = Enum.SurfaceType.Smooth
+	enemy.BottomSurface = Enum.SurfaceType.Smooth
+	
+	-- Spawn at random location
+	local spawnX = math.random(-50, 50)
+	local spawnZ = math.random(-50, 50)
+	enemy.Position = Vector3.new(spawnX, 5, spawnZ)
+	
+	enemy.Parent = enemiesFolder
+	
+	-- Add health value to enemy
+	local healthValue = Instance.new("IntValue")
+	healthValue.Name = "Health"
+	healthValue.Value = GameConfig.EnemyStats.health
+	healthValue.Parent = enemy
+	
+	-- Add humanoid for consistency
+	local humanoid = Instance.new("Humanoid")
+	humanoid.Parent = enemy
+	humanoid.MaxHealth = GameConfig.EnemyStats.health
+	humanoid.Health = GameConfig.EnemyStats.health
+	
+	return enemy
+end
+
+-- Damage enemy
+local function damageEnemy(enemy, damage)
+	local health = enemy:FindFirstChild("Health")
+	if health then
+		health.Value = health.Value - damage
+		if health.Value <= 0 then
+			return true  -- Enemy defeated
+		end
+	end
+	return false
+end
+
+-- Handle enemy defeat
+local function defeatEnemy(enemy, defeatedBy)
+	-- Award coins and XP
+	local stats = PlayerData:GetPlayerStats(defeatedBy.UserId)
+	
+	-- Calculate damage multiplier
+	local multiplier = PetSystem:GetPlayerMultiplier(defeatedBy.UserId)
+	local coinReward = math.floor(GameConfig.CoinReward * multiplier)
+	
+	-- Award coins
+	PlayerData:AddCoins(defeatedBy.UserId, coinReward)
+	PlayerData:AddDamage(defeatedBy.UserId, math.floor(GameConfig.EnemyStats.baseDamage * multiplier))
+	PlayerData:AddKill(defeatedBy.UserId)
+	PlayerData:AddXP(defeatedBy.UserId, 10)
+	
+	-- Remove enemy
+	enemy:Destroy()
+	GameManager.enemies[enemy] = nil
+end
+
+-- Spawn enemies periodically
+spawn(function()
+	while true do
+		wait(GameConfig.EnemyStats.spawnRate)
+		
+		local enemy = createEnemy()
+		GameManager.enemies[enemy] = {
+			health = GameConfig.EnemyStats.health,
+			spawnTime = tick()
+		}
+	end
+end)
+
+-- Remove despawned enemies
+spawn(function()
+	while true do
+		wait(5)
+		
+		local now = tick()
+		for enemy, data in pairs(GameManager.enemies) do
+			if enemy.Parent == nil or (now - data.spawnTime) > GameConfig.EnemyStats.despawnTime then
+				GameManager.enemies[enemy] = nil
+				if enemy.Parent then
+					enemy:Destroy()
+				end
+			end
+		end
+	end
+end)
+
+-- RemoteEvent for player attack
+local attackRemote = Instance.new("RemoteEvent")
+attackRemote.Name = "Attack"
+attackRemote.Parent = game.ReplicatedStorage
+
+-- Handle attack requests from clients
+attackRemote.OnServerEvent:Connect(function(player, enemyHit)
+	if not enemyHit or enemyHit.Parent ~= enemiesFolder then
+		return  -- Invalid enemy
+	end
+	
+	-- Get player stats
+	local stats = PlayerData:GetPlayerStats(player.UserId)
+	
+	-- Calculate damage (base + multiplier)
+	local multiplier = PetSystem:GetPlayerMultiplier(player.UserId)
+	local baseDamage = GameConfig.EnemyStats.baseDamage * (1 + stats.level * 0.5)
+	local finalDamage = math.floor(baseDamage * multiplier)
+	
+	-- Deal damage
+	local defeated = damageEnemy(enemyHit, finalDamage)
+	
+	if defeated then
+		defeatEnemy(enemyHit, player)
+	end
+end)
+
+-- RemoteFunction to get all enemies
+local getEnemiesRemote = Instance.new("RemoteFunction")
+getEnemiesRemote.Name = "GetEnemies"
+getEnemiesRemote.Parent = game.ReplicatedStorage
+
+getEnemiesRemote.OnServerInvoke = function(player)
+	local enemyList = {}
+	for enemy, _ in pairs(GameManager.enemies) do
+		if enemy.Parent then
+			table.insert(enemyList, {
+				position = enemy.Position,
+				health = enemy:FindFirstChild("Health").Value
+			})
+		end
+	end
+	return enemyList
+end
+
+print("Game Manager initialized - enemies spawning")
+
+return GameManager
+]]></ProtectedString>
+        <bool name="Disabled">false</bool>
+      </Properties>
+    </Item>
+<Item class="Script" referent="RBX103">
+      <Properties>
+        <string name="Name">AdminCommands</string>
+        <ProtectedString name="Source"><![CDATA[--[[
+	BEAST BRAWL SIMULATOR - Admin Commands
+	Admin command system with security checks
+]]
+
+local Players = game:GetService("Players")
+local GameConfig = require(game.ReplicatedStorage:WaitForChild("GameConfig"))
+local PlayerData = require(game.ServerScriptService:WaitForChild("PlayerData"))
+local PetSystem = require(game.ServerScriptService:WaitForChild("PetSystem"))
+
+local AdminCommands = {}
+
+-- Check if player is admin
+local function isAdmin(userId)
+	for _, adminId in ipairs(GameConfig.AdminUserIds) do
+		if adminId == userId then
+			return true
+		end
+	end
+	return false
+end
+
+-- Parse admin command
+local function parseCommand(message)
+	local parts = {}
+	for part in message:gmatch("%S+") do
+		table.insert(parts, part)
+	end
+	return parts
+end
+
+-- Execute admin commands
+local function executeCommand(player, commandParts)
+	if #commandParts == 0 then return end
+	
+	local command = string.lower(commandParts[1])
+	
+	-- :give [player] [coins/pets] [amount]
+	if command == ":give" then
+		if #commandParts < 4 then
+			player:Kick("Usage: :give [player] [coins/pets] [amount]")
+			return
+		end
+		
+		local targetName = commandParts[2]
+		local giveType = string.lower(commandParts[3])
+		local amount = tonumber(commandParts[4])
+		
+		local target = Players:FindFirstChild(targetName)
+		if not target then
+			player:Kick("Player not found: " .. targetName)
+			return
+		end
+		
+		if giveType == "coins" then
+			PlayerData:AddCoins(target.UserId, amount)
+			print("[ADMIN] " .. player.Name .. " gave " .. amount .. " coins to " .. target.Name)
+		elseif giveType == "pets" then
+			for _ = 1, amount do
+				PetSystem:GivePet(target.UserId, "Legendary")
+			end
+			print("[ADMIN] " .. player.Name .. " gave " .. amount .. " Legendary pets to " .. target.Name)
+		end
+		return
+	end
+	
+	-- :god [player] (make invincible)
+	if command == ":god" then
+		if #commandParts < 2 then
+			player:Kick("Usage: :god [player]")
+			return
+		end
+		
+		local targetName = commandParts[2]
+		local target = Players:FindFirstChild(targetName)
+		if not target then
+			player:Kick("Player not found: " .. targetName)
+			return
+		end
+		
+		-- Give massive health/damage boost
+		local stats = PlayerData:GetPlayerStats(target.UserId)
+		stats.level = 999
+		print("[ADMIN] " .. player.Name .. " made " .. target.Name .. " god mode")
+		return
+	end
+	
+	-- :kick [player]
+	if command == ":kick" then
+		if #commandParts < 2 then
+			player:Kick("Usage: :kick [player]")
+			return
+		end
+		
+		local targetName = commandParts[2]
+		local target = Players:FindFirstChild(targetName)
+		if not target then
+			player:Kick("Player not found: " .. targetName)
+			return
+		end
+		
+		target:Kick("Kicked by admin: " .. player.Name)
+		print("[ADMIN] " .. player.Name .. " kicked " .. target.Name)
+		return
+	end
+	
+	-- :speed [player] [number]
+	if command == ":speed" then
+		if #commandParts < 3 then
+			player:Kick("Usage: :speed [player] [num]")
+			return
+		end
+		
+		local targetName = commandParts[2]
+		local speed = tonumber(commandParts[3]) or 16
+		
+		local target = Players:FindFirstChild(targetName)
+		if not target or not target.Character then
+			player:Kick("Player not found: " .. targetName)
+			return
+		end
+		
+		-- Set humanoid walk speed
+		local humanoid = target.Character:FindFirstChild("Humanoid")
+		if humanoid then
+			humanoid.WalkSpeed = speed
+		end
+		print("[ADMIN] " .. player.Name .. " set " .. target.Name .. " speed to " .. speed)
+		return
+	end
+	
+	-- :tp [player] (teleport to admin)
+	if command == ":tp" then
+		if #commandParts < 2 then
+			player:Kick("Usage: :tp [player]")
+			return
+		end
+		
+		local targetName = commandParts[2]
+		local target = Players:FindFirstChild(targetName)
+		if not target or not target.Character then
+			player:Kick("Player not found: " .. targetName)
+			return
+		end
+		
+		-- Teleport player to admin
+		if player.Character and target.Character then
+			target.Character:MoveTo(player.Character.PrimaryPart.Position + Vector3.new(5, 0, 0))
+		end
+		print("[ADMIN] " .. player.Name .. " teleported " .. target.Name)
+		return
+	end
+	
+	-- :rejoin [player]
+	if command == ":rejoin" then
+		if #commandParts < 2 then
+			player:Kick("Usage: :rejoin [player]")
+			return
+		end
+		
+		local targetName = commandParts[2]
+		local target = Players:FindFirstChild(targetName)
+		if not target then
+			player:Kick("Player not found: " .. targetName)
+			return
+		end
+		
+		target:Kick("You have been asked to rejoin. Please rejoin the game.")
+		print("[ADMIN] " .. player.Name .. " told " .. target.Name .. " to rejoin")
+		return
+	end
+end
+
+-- Chat handler
+Players.PlayerAdded:Connect(function(player)
+	local leaderstats = Instance.new("Folder")
+	leaderstats.Name = "leaderstats"
+	leaderstats.Parent = player
+	
+	-- Create stat values
+	local coins = Instance.new("IntValue")
+	coins.Name = "Coins"
+	coins.Value = 0
+	coins.Parent = leaderstats
+	
+	local level = Instance.new("IntValue")
+	level.Name = "Level"
+	level.Value = 1
+	level.Parent = leaderstats
+	
+	local kills = Instance.new("IntValue")
+	kills.Name = "Kills"
+	kills.Value = 0
+	kills.Parent = leaderstats
+	
+	-- Update leaderstats when data changes
+	game:GetService("RunService").Heartbeat:Connect(function()
+		local stats = PlayerData:GetPlayerStats(player.UserId)
+		coins.Value = stats.coins
+		level.Value = stats.level
+		kills.Value = stats.kills
+	end)
+end)
+
+-- Admin command chat detection
+Players.PlayerAdded:Connect(function(player)
+	if isAdmin(player.UserId) then
+		print("[ADMIN] Admin player joined: " .. player.Name .. " (ID: " .. player.UserId .. ")")
+		
+		-- Listen for chat with admin prefix
+		local chatRemote = Instance.new("RemoteEvent")
+		chatRemote.Name = "AdminChat"
+		chatRemote.Parent = game.ReplicatedStorage
+		
+		chatRemote.OnServerEvent:Connect(function(p, message)
+			if p.UserId == player.UserId and message:sub(1, 1) == ":" then
+				local commandParts = parseCommand(message)
+				executeCommand(player, commandParts)
+			end
+		end)
+	end
+end)
+
+print("Admin Commands initialized")
+
+return AdminCommands
+]]></ProtectedString>
+        <bool name="Disabled">false</bool>
+      </Properties>
+    </Item>
+<Item class="Script" referent="RBX104">
+      <Properties>
+        <string name="Name">Leaderboard</string>
+        <ProtectedString name="Source"><![CDATA[--[[
+	BEAST BRAWL SIMULATOR - Leaderboard System
+	OrderedDataStore leaderboard for top players by totalDamage
+]]
+
+local DataStoreService = game:GetService("DataStoreService")
+local Players = game:GetService("Players")
+local GameConfig = require(game.ReplicatedStorage:WaitForChild("GameConfig"))
+local PlayerData = require(game.ServerScriptService:WaitForChild("PlayerData"))
+
+local Leaderboard = {}
+
+-- Initialize OrderedDataStore for leaderboard
+local leaderboardStore = DataStoreService:GetOrderedDataStore(GameConfig.LeaderboardStoreName)
+
+-- Update leaderboard entry
+function Leaderboard:UpdatePlayerScore(userId, totalDamage)
+	local success, err = pcall(function()
+		leaderboardStore:SetAsync("Player_" .. userId, totalDamage)
+	end)
+	
+	if not success then
+		warn("Failed to update leaderboard for player " .. userId .. ": " .. tostring(err))
+	end
+end
+
+-- Get top players
+function Leaderboard:GetTopPlayers(limit)
+	limit = limit or GameConfig.LeaderboardSize
+	local success, data = pcall(function()
+		return leaderboardStore:GetSortedAsync(false, limit)  -- descending order
+	end)
+	
+	if success then
+		local topPlayers = {}
+		for _, entry in ipairs(data:GetCurrentPage()) do
+			table.insert(topPlayers, {
+				userId = tonumber(entry.key:gsub("Player_", "")),
+				totalDamage = entry.value,
+				rank = #topPlayers + 1
+			})
+		end
+		return topPlayers
+	else
+		warn("Failed to get leaderboard data: " .. tostring(data))
+		return {}
+	end
+end
+
+-- Get player rank
+function Leaderboard:GetPlayerRank(userId)
+	local topPlayers = self:GetTopPlayers(1000)
+	for i, player in ipairs(topPlayers) do
+		if player.userId == userId then
+			return i
+		end
+	end
+	return nil  -- Player not on leaderboard
+end
+
+-- RemoteFunction to request leaderboard
+local leaderboardRemote = Instance.new("RemoteFunction")
+leaderboardRemote.Name = "GetLeaderboard"
+leaderboardRemote.Parent = game.ReplicatedStorage
+
+leaderboardRemote.OnServerInvoke = function(player)
+	return Leaderboard:GetTopPlayers(100)
+end
+
+-- RemoteFunction to get player rank
+local playerRankRemote = Instance.new("RemoteFunction")
+playerRankRemote.Name = "GetPlayerRank"
+playerRankRemote.Parent = game.ReplicatedStorage
+
+playerRankRemote.OnServerInvoke = function(player)
+	return {
+		rank = Leaderboard:GetPlayerRank(player.UserId),
+		totalDamage = PlayerData:GetPlayerStats(player.UserId).totalDamage
+	}
+end
+
+-- Update leaderboard periodically
+spawn(function()
+	while true do
+		wait(GameConfig.LeaderboardUpdateInterval)
+		
+		-- Update all online players
+		for _, player in ipairs(Players:GetPlayers()) do
+			local stats = PlayerData:GetPlayerStats(player.UserId)
+			Leaderboard:UpdatePlayerScore(player.UserId, stats.totalDamage)
+		end
+		
+		-- Cleanup old entries (keep only top 1000)
+		local topPlayers = Leaderboard:GetTopPlayers(1000)
+		-- Entries outside top 1000 will naturally age out with the OrderedDataStore TTL
+	end
+end)
+
+-- Update leaderboard on player level up
+local function onPlayerStatsChange()
+	-- This will be called by PlayerData whenever stats update
+end
+
+print("Leaderboard System initialized - updating every " .. GameConfig.LeaderboardUpdateInterval .. " seconds")
+
+return Leaderboard
+]]></ProtectedString>
+        <bool name="Disabled">false</bool>
+      </Properties>
+    </Item>
+<Item class="Script" referent="RBX105">
+      <Properties>
+        <string name="Name">GamePasses</string>
+        <ProtectedString name="Source"><![CDATA[--[[
+	BEAST BRAWL SIMULATOR - Game Pass System
+	MarketplaceService integration for VIP, AutoCollect, StarterPack
+]]
+
+local MarketplaceService = game:GetService("MarketplaceService")
+local Players = game:GetService("Players")
+local GameConfig = require(game.ReplicatedStorage:WaitForChild("GameConfig"))
+local PlayerData = require(game.ServerScriptService:WaitForChild("PlayerData"))
+local PetSystem = require(game.ServerScriptService:WaitForChild("PetSystem"))
+
+local GamePasses = {}
+GamePasses.playerPasses = {}  -- Track owned passes: {userId -> {VIP, AutoCollect, StarterPack}}
+
+-- Check if player owns a game pass
+function GamePasses:PlayerOwnsPass(userId, passName)
+	local passId = GameConfig.GamePassIds[passName]
+	
+	-- Return false if pass ID is placeholder (0)
+	if passId == 0 then
+		return false
+	end
+	
+	local success, owns = pcall(function()
+		return MarketplaceService:UserOwnsGamePassAsync(userId, passId)
+	end)
+	
+	if success then
+		return owns
+	else
+		warn("Failed to check game pass ownership for " .. userId .. ": " .. tostring(owns))
+		return false
+	end
+end
+
+-- Handle game pass purchase
+local function onGamePassPurchased(player, passName)
+	local userId = player.UserId
+	
+	if passName == "VIP" then
+		-- Give VIP benefits: 2x coins, exclusive pet, daily bonus
+		print("[GAMEPASS] " .. player.Name .. " purchased VIP")
+		-- VIP multiplier is handled in client UI
+		
+	elseif passName == "AutoCollect" then
+		-- Pets auto-fight without player
+		print("[GAMEPASS] " .. player.Name .. " purchased AutoCollect")
+		-- AutoCollect logic handled in combat client
+		
+	elseif passName == "StarterPack" then
+		-- 1000 coins + rare pet on first purchase
+		PlayerData:AddCoins(userId, 1000)
+		PetSystem:GivePet(userId, "Rare")
+		print("[GAMEPASS] " .. player.Name .. " purchased StarterPack - gave 1000 coins + rare pet")
+	end
+end
+
+-- RemoteEvent for game pass purchase requests
+local purchasePassRemote = Instance.new("RemoteEvent")
+purchasePassRemote.Name = "PurchaseGamePass"
+purchasePassRemote.Parent = game.ReplicatedStorage
+
+purchasePassRemote.OnServerEvent:Connect(function(player, passName)
+	if GameConfig.GamePassIds[passName] == 0 then
+		player:Kick("Game pass ID not configured: " .. passName)
+		return
+	end
+	
+	-- Trigger purchase prompt on client (client handles actual purchase)
+	print("Purchase requested for: " .. passName .. " by " .. player.Name)
+end)
+
+-- Handle player join - cache their owned passes
+Players.PlayerAdded:Connect(function(player)
+	local userId = player.UserId
+	GamePasses.playerPasses[userId] = {}
+	
+	-- Check all passes asynchronously
+	for passName, passId in pairs(GameConfig.GamePassIds) do
+		if passId ~= 0 then  -- Skip placeholder IDs
+			task.spawn(function()
+				if GamePasses:PlayerOwnsPass(userId, passName) then
+					GamePasses.playerPasses[userId][passName] = true
+					onGamePassPurchased(player, passName)
+				end
+			end)
+		end
+	end
+end)
+
+-- Listen for purchase prompts
+MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(userId, gamePassId, purchased)
+	local player = Players:GetUserIdFromCharacter(userId) and Players:FindFirstChild(tostring(userId))
+	if not player then return end
+	
+	if purchased then
+		-- Determine which pass was purchased
+		for passName, passId in pairs(GameConfig.GamePassIds) do
+			if passId == gamePassId then
+				onGamePassPurchased(player, passName)
+				break
+			end
+		end
+	end
+end)
+
+-- RemoteFunction to check pass ownership
+local checkPassRemote = Instance.new("RemoteFunction")
+checkPassRemote.Name = "CheckGamePass"
+checkPassRemote.Parent = game.ReplicatedStorage
+
+checkPassRemote.OnServerInvoke = function(player, passName)
+	return GamePasses:PlayerOwnsPass(player.UserId, passName)
+end
+
+-- Get VIP multiplier
+function GamePasses:GetVIPMultiplier(userId)
+	if GamePasses:PlayerOwnsPass(userId, "VIP") then
+		return 2  -- 2x coins
+	end
+	return 1
+end
+
+print("Game Pass System initialized")
+
+return GamePasses
+]]></ProtectedString>
+        <bool name="Disabled">false</bool>
+      </Properties>
+    </Item>
+</Item>
+<Item class="StarterPlayer" referent="RBX3"><Properties><string name="Name">StarterPlayer</string></Properties>
+<Item class="StarterPlayerScripts" referent="RBX4"><Properties><string name="Name">StarterPlayerScripts</string></Properties>
+<Item class="LocalScript" referent="RBX106">
+      <Properties>
+        <string name="Name">LocalUI</string>
+        <ProtectedString name="Source"><![CDATA[--[[
+	BEAST BRAWL SIMULATOR - Local UI Client
+	Displays coins, pets, level/XP, rebirth, and leaderboard
+]]
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Wait for RemoteEvents/Functions
+local spinPetRemote = game.ReplicatedStorage:WaitForChild("SpinPet")
+local petSpinResultRemote = game.ReplicatedStorage:WaitForChild("PetSpinResult")
+local getLeaderboardRemote = game.ReplicatedStorage:WaitForChild("GetLeaderboard")
+local getPlayerRankRemote = game.ReplicatedStorage:WaitForChild("GetPlayerRank")
+local checkPassRemote = game.ReplicatedStorage:WaitForChild("CheckGamePass")
+
+-- Create main UI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "GameUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- Coins Display (top-left)
+local coinsLabel = Instance.new("TextLabel")
+coinsLabel.Name = "CoinsLabel"
+coinsLabel.Size = UDim2.new(0, 200, 0, 50)
+coinsLabel.Position = UDim2.new(0, 10, 0, 10)
+coinsLabel.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+coinsLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+coinsLabel.TextSize = 24
+coinsLabel.Font = Enum.Font.GothamBold
+coinsLabel.Text = "Coins: 0"
+coinsLabel.Parent = screenGui
+
+-- Level Display (top-left, below coins)
+local levelLabel = Instance.new("TextLabel")
+levelLabel.Name = "LevelLabel"
+levelLabel.Size = UDim2.new(0, 200, 0, 40)
+levelLabel.Position = UDim2.new(0, 10, 0, 70)
+levelLabel.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+levelLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+levelLabel.TextSize = 18
+levelLabel.Font = Enum.Font.GothamBold
+levelLabel.Text = "Level: 1"
+levelLabel.Parent = screenGui
+
+-- XP Bar
+local xpBackground = Instance.new("Frame")
+xpBackground.Name = "XPBackground"
+xpBackground.Size = UDim2.new(0, 200, 0, 20)
+xpBackground.Position = UDim2.new(0, 10, 0, 120)
+xpBackground.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+xpBackground.Parent = screenGui
+
+local xpBar = Instance.new("Frame")
+xpBar.Name = "XPBar"
+xpBar.Size = UDim2.new(0, 0, 1, 0)
+xpBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+xpBar.Parent = xpBackground
+
+-- Pet Inventory Panel (top-right)
+local petPanel = Instance.new("Frame")
+petPanel.Name = "PetPanel"
+petPanel.Size = UDim2.new(0, 250, 0, 200)
+petPanel.Position = UDim2.new(1, -260, 0, 10)
+petPanel.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+petPanel.BorderColor3 = Color3.fromRGB(100, 100, 100)
+petPanel.Parent = screenGui
+
+local petTitle = Instance.new("TextLabel")
+petTitle.Name = "PetTitle"
+petTitle.Size = UDim2.new(1, 0, 0, 30)
+petTitle.Position = UDim2.new(0, 0, 0, 0)
+petTitle.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+petTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+petTitle.TextSize = 16
+petTitle.Font = Enum.Font.GothamBold
+petTitle.Text = "Pets: 0"
+petTitle.Parent = petPanel
+
+local petList = Instance.new("TextLabel")
+petList.Name = "PetList"
+petList.Size = UDim2.new(1, -10, 1, -50)
+petList.Position = UDim2.new(0, 5, 0, 35)
+petList.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+petList.TextColor3 = Color3.fromRGB(200, 200, 200)
+petList.TextSize = 12
+petList.Font = Enum.Font.GothamMonospace
+petList.Text = "No pets yet"
+petList.TextWrapped = true
+petList.TextXAlignment = Enum.TextXAlignment.Left
+petList.TextYAlignment = Enum.TextYAlignment.Top
+petList.Parent = petPanel
+
+-- Spin Button (center-bottom)
+local spinButton = Instance.new("TextButton")
+spinButton.Name = "SpinButton"
+spinButton.Size = UDim2.new(0, 150, 0, 50)
+spinButton.Position = UDim2.new(0.5, -75, 1, -70)
+spinButton.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+spinButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+spinButton.TextSize = 18
+spinButton.Font = Enum.Font.GothamBold
+spinButton.Text = "SPIN PET"
+spinButton.Parent = screenGui
+
+-- Spin Result Display
+local spinResultLabel = Instance.new("TextLabel")
+spinResultLabel.Name = "SpinResult"
+spinResultLabel.Size = UDim2.new(0, 300, 0, 100)
+spinResultLabel.Position = UDim2.new(0.5, -150, 1, -190)
+spinResultLabel.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+spinResultLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+spinResultLabel.TextSize = 16
+spinResultLabel.Font = Enum.Font.GothamBold
+spinResultLabel.Text = ""
+spinResultLabel.TextWrapped = true
+spinResultLabel.Visible = false
+spinResultLabel.Parent = screenGui
+
+-- Rebirth Button
+local rebirthButton = Instance.new("TextButton")
+rebirthButton.Name = "RebirthButton"
+rebirthButton.Size = UDim2.new(0, 150, 0, 50)
+rebirthButton.Position = UDim2.new(1, -160, 1, -70)
+rebirthButton.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
+rebirthButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+rebirthButton.TextSize = 16
+rebirthButton.Font = Enum.Font.GothamBold
+rebirthButton.Text = "REBIRTH"
+rebirthButton.Parent = screenGui
+
+-- Leaderboard Button
+local leaderboardButton = Instance.new("TextButton")
+leaderboardButton.Name = "LeaderboardButton"
+leaderboardButton.Size = UDim2.new(0, 150, 0, 40)
+leaderboardButton.Position = UDim2.new(0, 10, 1, -110)
+leaderboardButton.BackgroundColor3 = Color3.fromRGB(150, 0, 150)
+leaderboardButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+leaderboardButton.TextSize = 14
+leaderboardButton.Font = Enum.Font.GothamBold
+leaderboardButton.Text = "LEADERBOARD"
+leaderboardButton.Parent = screenGui
+
+-- Leaderboard Display
+local leaderboardGui = Instance.new("Frame")
+leaderboardGui.Name = "LeaderboardFrame"
+leaderboardGui.Size = UDim2.new(0, 400, 0, 500)
+leaderboardGui.Position = UDim2.new(0.5, -200, 0.5, -250)
+leaderboardGui.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+leaderboardGui.Visible = false
+leaderboardGui.Parent = screenGui
+
+-- Add close button to leaderboard
+local closeButton = Instance.new("TextButton")
+closeButton.Name = "CloseButton"
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -35, 0, 5)
+closeButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.Text = "X"
+closeButton.Parent = leaderboardGui
+
+closeButton.MouseButton1Click:Connect(function()
+	leaderboardGui.Visible = false
+end)
+
+local leaderboardList = Instance.new("TextLabel")
+leaderboardList.Name = "LeaderboardList"
+leaderboardList.Size = UDim2.new(1, -10, 1, -50)
+leaderboardList.Position = UDim2.new(0, 5, 0, 40)
+leaderboardList.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+leaderboardList.TextColor3 = Color3.fromRGB(200, 200, 200)
+leaderboardList.TextSize = 12
+leaderboardList.Font = Enum.Font.GothamMonospace
+leaderboardList.Text = "Loading..."
+leaderboardList.TextWrapped = true
+leaderboardList.TextXAlignment = Enum.TextXAlignment.Left
+leaderboardList.TextYAlignment = Enum.TextYAlignment.Top
+leaderboardList.Parent = leaderboardGui
+
+-- Update UI function
+local function updateUI()
+	local stats = player:WaitForChild("leaderstats")
+	
+	coinsLabel.Text = "Coins: " .. stats.Coins.Value
+	levelLabel.Text = "Level: " .. stats.Level.Value
+end
+
+-- Spin button clicked
+spinButton.MouseButton1Click:Connect(function()
+	spinPetRemote:FireServer()
+	
+	-- Wait for result
+	local result = petSpinResultRemote:InvokeServer()
+	if result then
+		spinResultLabel.Text = "Got " .. result.displayName .. " Pet!\nMultiplier: " .. result.multiplier .. "x\nTotal Pets: " .. result.petsCount
+		spinResultLabel.Visible = true
+		
+		-- Hide after 3 seconds
+		task.wait(3)
+		spinResultLabel.Visible = false
+	end
+end)
+
+-- Leaderboard button clicked
+leaderboardButton.MouseButton1Click:Connect(function()
+	leaderboardGui.Visible = not leaderboardGui.Visible
+	
+	if leaderboardGui.Visible then
+		-- Fetch leaderboard
+		local leaderboard = getLeaderboardRemote:InvokeServer()
+		local playerRank = getPlayerRankRemote:InvokeServer()
+		
+		local text = "=== TOP 100 PLAYERS ===\n\n"
+		for i, entry in ipairs(leaderboard) do
+			text = text .. i .. ". Player ID: " .. entry.userId .. " | Damage: " .. entry.totalDamage .. "\n"
+		end
+		
+		text = text .. "\n=== YOUR STATS ===\nRank: " .. (playerRank.rank or "Unranked") .. "\nDamage: " .. playerRank.totalDamage
+		
+		leaderboardList.Text = text
+	end
+end)
+
+-- Update UI periodically
+while true do
+	updateUI()
+	task.wait(0.5)
+end
+]]></ProtectedString>
+        <bool name="Disabled">false</bool>
+      </Properties>
+    </Item>
+<Item class="LocalScript" referent="RBX107">
+      <Properties>
+        <string name="Name">CombatClient</string>
+        <ProtectedString name="Source"><![CDATA[--[[
+	BEAST BRAWL SIMULATOR - Combat Client
+	Client-side click/tap combat, attack nearest enemy, floating damage numbers
+]]
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+local camera = Workspace.CurrentCamera
+
+-- Wait for RemoteEvents/Functions
+local attackRemote = game.ReplicatedStorage:WaitForChild("Attack")
+local getEnemiesRemote = game.ReplicatedStorage:WaitForChild("GetEnemies")
+
+-- Combat tracking
+local lastAttackTime = 0
+local attackCooldown = 0.2  -- 200ms between attacks
+
+-- Create floating damage number
+local function createDamageNumber(position, damage)
+	local part = Instance.new("Part")
+	part.Shape = Enum.PartType.Ball
+	part.Size = Vector3.new(0.5, 0.5, 0.5)
+	part.CanCollide = false
+	part.CFrame = CFrame.new(position)
+	part.TopSurface = Enum.SurfaceType.Smooth
+	part.BottomSurface = Enum.SurfaceType.Smooth
+	part.Transparency = 0
+	
+	-- Create billboard GUI for damage text
+	local billboard = Instance.new("BillboardGui")
+	billboard.Adornee = part
+	billboard.MaxDistance = 100
+	billboard.Size = UDim2.new(4, 0, 2, 0)
+	
+	local textLabel = Instance.new("TextLabel")
+	textLabel.Size = UDim2.new(1, 0, 1, 0)
+	textLabel.BackgroundTransparency = 1
+	textLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+	textLabel.TextSize = 20
+	textLabel.Font = Enum.Font.GothamBold
+	textLabel.Text = tostring(damage)
+	textLabel.Parent = billboard
+	
+	billboard.Parent = part
+	part.Parent = Workspace
+	
+	-- Animate floating up and fading
+	local startTime = tick()
+	local duration = 1  -- 1 second animation
+	
+	local conn
+	conn = RunService.RenderStepped:Connect(function()
+		local elapsed = tick() - startTime
+		local progress = math.min(elapsed / duration, 1)
+		
+		-- Move up
+		part.CFrame = part.CFrame + Vector3.new(0, 0.1, 0)
+		
+		-- Fade out
+		textLabel.TextTransparency = progress
+		
+		if progress >= 1 then
+			conn:Disconnect()
+			part:Destroy()
+		end
+	end)
+end
+
+-- Get nearest enemy to player
+local function getNearestEnemy()
+	local character = player.Character
+	if not character then return nil end
+	
+	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+	if not humanoidRootPart then return nil end
+	
+	local enemiesFolder = Workspace:FindFirstChild("Enemies")
+	if not enemiesFolder then return nil end
+	
+	local nearestEnemy = nil
+	local nearestDistance = math.huge
+	
+	for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+		if enemy:IsA("BasePart") and enemy.Parent then
+			local distance = (enemy.Position - humanoidRootPart.Position).Magnitude
+			if distance < nearestDistance and distance < 50 then  -- 50 stud range
+				nearestDistance = distance
+				nearestEnemy = enemy
+			end
+		end
+	end
+	
+	return nearestEnemy
+end
+
+-- Perform attack
+local function attack()
+	local now = tick()
+	if now - lastAttackTime < attackCooldown then
+		return  -- Still in cooldown
+	end
+	lastAttackTime = now
+	
+	local nearestEnemy = getNearestEnemy()
+	if not nearestEnemy then
+		return  -- No enemy in range
+	end
+	
+	-- Send attack to server
+	attackRemote:FireServer(nearestEnemy)
+	
+	-- Visual feedback
+	local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+	if humanoidRootPart then
+		createDamageNumber(nearestEnemy.Position, math.random(10, 20))
+	end
+end
+
+-- Click to attack
+mouse.Button1Down:Connect(function()
+	attack()
+end)
+
+-- Tap to attack (for mobile)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	
+	if input.UserInputType == Enum.UserInputType.Touch then
+		attack()
+	end
+end)
+
+-- Keyboard shortcut (spacebar to attack)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	
+	if input.KeyCode == Enum.KeyCode.Space then
+		attack()
+	end
+end)
+
+-- Display nearby enemies
+local function displayEnemyCount()
+	local character = player.Character
+	if not character then return end
+	
+	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+	if not humanoidRootPart then return end
+	
+	local enemiesFolder = Workspace:FindFirstChild("Enemies")
+	if not enemiesFolder then return end
+	
+	local count = 0
+	for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+		if enemy:IsA("BasePart") and enemy.Parent then
+			local distance = (enemy.Position - humanoidRootPart.Position).Magnitude
+			if distance < 50 then
+				count = count + 1
+			end
+		end
+	end
+	
+	return count
+end
+
+-- Auto-attack loop (optional: continuous attacks if held down)
+local isAttacking = false
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if input.KeyCode == Enum.KeyCode.X then
+		isAttacking = true
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input, gameProcessed)
+	if input.KeyCode == Enum.KeyCode.X then
+		isAttacking = false
+	end
+end)
+
+-- Continuous attack when X is held
+spawn(function()
+	while true do
+		if isAttacking then
+			attack()
+		end
+		task.wait(0.3)
+	end
+end)
+
+print("Combat Client loaded - Click to attack, X to auto-attack")
+]]></ProtectedString>
+        <bool name="Disabled">false</bool>
+      </Properties>
+    </Item>
+</Item></Item>
+<Item class="ReplicatedStorage" referent="RBX5"><Properties><string name="Name">ReplicatedStorage</string></Properties>
+<Item class="ModuleScript" referent="RBX108">
+      <Properties>
+        <string name="Name">GameConfig</string>
+        <ProtectedString name="Source"><![CDATA[--[[
+	BEAST BRAWL SIMULATOR - Game Configuration
+	Central config for pets, enemies, progression, and game passes
+]]
+
+local GameConfig = {}
+
+-- PET RARITY TABLE
+-- Format: {name, weight (out of 100), multiplier, color}
+GameConfig.PetRarities = {
+	Common = {
+		weight = 50,
+		multiplier = 1.1,
+		color = Color3.fromRGB(100, 100, 100),  -- Gray
+		displayName = "Common"
+	},
+	Uncommon = {
+		weight = 25,
+		multiplier = 1.3,
+		color = Color3.fromRGB(0, 255, 0),  -- Green
+		displayName = "Uncommon"
+	},
+	Rare = {
+		weight = 15,
+		multiplier = 1.8,
+		color = Color3.fromRGB(0, 100, 255),  -- Blue
+		displayName = "Rare"
+	},
+	Epic = {
+		weight = 8,
+		multiplier = 2.5,
+		color = Color3.fromRGB(200, 0, 255),  -- Purple
+		displayName = "Epic"
+	},
+	Legendary = {
+		weight = 2,
+		multiplier = 5,
+		color = Color3.fromRGB(255, 200, 0),  -- Gold
+		displayName = "Legendary"
+	}
+}
+
+-- Ordered list for weighted random selection
+GameConfig.PetRarityList = {"Common", "Uncommon", "Rare", "Epic", "Legendary"}
+
+-- ENEMY CONFIGURATION
+GameConfig.EnemyStats = {
+	health = 50,
+	baseDamage = 5,
+	spawnRate = 5,  -- Spawn every 5 seconds
+	despawnTime = 300  -- 5 minutes
+}
+
+-- LEVEL PROGRESSION
+GameConfig.LevelXPThresholds = {
+	10, 25, 50, 100, 200, 400, 800, 1600, 3200, 6400  -- XP needed for levels 2-11
+	-- Continue pattern: each level doubles
+}
+GameConfig.LevelUpStatPoints = 5  -- Points awarded per level
+
+-- REBIRTH SYSTEM
+GameConfig.RebirthCost = 10000  -- Coins needed to rebirth
+GameConfig.RebirthMultiplier = 1.2  -- Multiplier per rebirth
+
+-- GAME PASS IDs (Replace 0 with actual game pass IDs after creating them)
+GameConfig.GamePassIds = {
+	VIP = 0,           -- 2x coins, exclusive pet, daily bonus
+	AutoCollect = 0,   -- Pets auto-fight without player
+	StarterPack = 0    -- 1000 coins + rare pet on first purchase
+}
+
+-- ADMIN USER IDs (Replace 0 with actual admin UserId)
+GameConfig.AdminUserIds = {
+	7771604900,   -- Lerhhv7
+	10388433753   -- Lerhhv2
+}
+
+-- COIN REWARDS
+GameConfig.CoinReward = 10  -- Base coin per enemy defeated
+GameConfig.BossReward = 100  -- Bonus for defeating boss enemy
+
+-- LEADERBOARD
+GameConfig.LeaderboardUpdateInterval = 60  -- Update every 60 seconds
+GameConfig.LeaderboardSize = 100  -- Top 100 players
+
+-- PET DAMAGE SCALING
+GameConfig.PetDamagePerLevel = 0.5  -- Additional multiplier per pet level
+
+-- DATASTORE NAMES
+GameConfig.PlayerDataStoreName = "BeastBrawl_PlayerData"
+GameConfig.LeaderboardStoreName = "BeastBrawl_Leaderboard"
+
+return GameConfig
+]]></ProtectedString>
+        <bool name="Disabled">false</bool>
+      </Properties>
+    </Item>
+</Item>
+</Item>
+</roblox>
