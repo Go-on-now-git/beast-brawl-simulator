@@ -21,13 +21,14 @@ toggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
 toggleBtn.TextScaled = true
 toggleBtn.Font = Enum.Font.GothamBold
 toggleBtn.BorderSizePixel = 0
+toggleBtn.Visible = false  -- sidebar button controls this panel
 toggleBtn.Parent = sg
 Instance.new("UICorner",toggleBtn).CornerRadius = UDim.new(0,12)
 
 -- Panel
 local panel = Instance.new("Frame")
 panel.Size = UDim2.new(0,340,0,560)
-panel.Position = UDim2.new(1,-360,0,160)
+panel.Position = UDim2.new(0.5,-170,0.5,-280)
 panel.BackgroundColor3 = Color3.fromRGB(15,5,5)
 panel.BorderSizePixel = 0
 panel.Visible = false
@@ -229,6 +230,19 @@ toggleBtn.MouseButton1Click:Connect(function()
 end)
 closeBtn.MouseButton1Click:Connect(function()
 	open = false; panel.Visible = false
+end)
+
+-- Wire to sidebar HUD button (may load after this script)
+spawn(function()
+	wait(3)  -- wait for UITheme to build HUD
+	local hudBtns = _G.HUDButtons
+	if hudBtns and hudBtns.admin then
+		hudBtns.admin.MouseButton1Click:Connect(function()
+			open = not open
+			panel.Visible = open
+			if open then refreshPlayers() end
+		end)
+	end
 end)
 
 print("[AdminPanel] 👑 Tremston admin GUI loaded!")

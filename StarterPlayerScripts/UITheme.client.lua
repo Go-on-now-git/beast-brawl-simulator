@@ -167,18 +167,18 @@ end
 -- ============================================================
 local leftBar = Instance.new("Frame")
 leftBar.Size = UDim2.new(0, 160, 0, 0)
-leftBar.Position = UDim2.new(0, 10, 0.5, -60)
+leftBar.Position = UDim2.new(0, 10, 0.5, -90)
 leftBar.BackgroundTransparency = 1
 leftBar.AutomaticSize = Enum.AutomaticSize.Y
 leftBar.Parent = sg
 
 local leftLayout = Instance.new("UIListLayout")
-leftLayout.Padding = UDim.new(0, 6)
+leftLayout.Padding = UDim.new(0, 14)
 leftLayout.Parent = leftBar
 
 local function makeStatCard(icon, label, valueId)
 	local card = Instance.new("Frame")
-	card.Size = UDim2.new(1, 0, 0, 52)
+	card.Size = UDim2.new(1, 0, 0, 64)
 	card.BackgroundColor3 = T.bgCard
 	card.BorderSizePixel = 0
 	card.Parent = leftBar
@@ -187,7 +187,7 @@ local function makeStatCard(icon, label, valueId)
 
 	makeLabel({text=icon, size=UDim2.new(0,32,0,24), pos=UDim2.new(0,10,0,4)}, card)
 	makeLabel({text=label, size=UDim2.new(1,-46,0,20), pos=UDim2.new(0,44,0,4), color=T.textMuted, align=Enum.TextXAlignment.Left}, card)
-	local val = makeLabel({text="0", size=UDim2.new(1,-10,0,26), pos=UDim2.new(0,8,0,24), font=T.font, color=T.textPrimary, align=Enum.TextXAlignment.Left}, card)
+	local val = makeLabel({text="0", size=UDim2.new(1,-10,0,32), pos=UDim2.new(0,8,0,28), font=T.font, color=T.accent, align=Enum.TextXAlignment.Left}, card)
 	return val
 end
 
@@ -284,7 +284,7 @@ _G.EquipLabel = equipLabel
 spawn(function()
 	wait(2)
 	-- Find and hide old buttons from CasinoUI/ShopUI/LeaderboardUI
-	for _, guiName in ipairs({"CasinoGui","ShopGui","LeaderboardGui","AdminGui","DamageCounterGui","SpeedLines"}) do
+	for _, guiName in ipairs({"CasinoGui","ShopGui","LeaderboardGui","DamageCounterGui","SpeedLines"}) do
 		local old = playerGui:FindFirstChild(guiName)
 		if old then
 			-- Hide only the old toggle buttons; keep panels alive
