@@ -17,13 +17,17 @@ local ROBUX_PRODUCTS = {
 
 -- Weapon definitions
 local WEAPONS = {
-	{id="fists",     name="👊 Fists",       cost=0,     damage=1.0,  speed=1.0,  desc="Default. Free.",         owned=true},
-	{id="sword",     name="⚔️ Iron Sword",  cost=200,   damage=1.8,  speed=1.1,  desc="Slash damage +80%"},
-	{id="axe",       name="🪓 War Axe",     cost=500,   damage=2.5,  speed=0.9,  desc="Massive damage, slow"},
-	{id="katana",    name="🗡️ Katana",      cost=900,   damage=2.2,  speed=1.5,  desc="Fast slashes, anime"},
-	{id="scythe",    name="💀 Death Scythe",cost=1800,  damage=3.5,  speed=1.2,  desc="Sigma weapon fr fr"},
-	{id="laser",     name="⚡ Laser Gun",   cost=3500,  damage=4.0,  speed=1.8,  desc="Pew pew no cap"},
-	{id="celestial", name="🌟 Celestial Blade",cost=10000,damage=8.0,speed=2.0, desc="Legendary. Bussin."},
+	{id="fists",     name="👊 Fists",            cost=0,     damage=1.0,  speed=1.0,  desc="Default. Free."},
+	{id="sword",     name="⚔️ Iron Sword",        cost=200,   damage=1.8,  speed=1.1,  desc="Slash damage +80%"},
+	{id="axe",       name="🪓 War Axe",           cost=500,   damage=2.5,  speed=0.9,  desc="Massive dmg, slow"},
+	{id="katana",    name="🗡️ Katana",            cost=900,   damage=2.2,  speed=1.5,  desc="Fast slashes, anime"},
+	{id="scythe",    name="💀 Death Scythe",      cost=1800,  damage=3.5,  speed=1.2,  desc="Sigma weapon fr fr"},
+	{id="laser",     name="⚡ Laser Gun",         cost=3500,  damage=4.0,  speed=1.8,  desc="Pew pew no cap"},
+	{id="raygun",    name="🔫 Ray Gun",           cost=5000,  damage=5.0,  speed=2.2,  desc="BRRT. Alien tech."},
+	{id="noob_tube", name="💥 Noob Tube (COD)",   cost=7500,  damage=7.0,  speed=0.8,  desc="One shot. No cap."},
+	{id="nuke",      name="☢️ Mini Nuke",         cost=12000, damage=9.0,  speed=0.5,  desc="AoE destroyer 💀"},
+	{id="banana",    name="🍌 Banana Gun",        cost=250,   damage=1.5,  speed=2.5,  desc="Slippery hits lol"},
+	{id="celestial", name="🌟 Celestial Blade",   cost=10000, damage=8.0,  speed=2.0,  desc="Legendary. Bussin."},
 }
 
 -- Armor definitions

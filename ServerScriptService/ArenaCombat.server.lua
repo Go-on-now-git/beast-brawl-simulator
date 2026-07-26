@@ -72,10 +72,20 @@ AttackEvent.OnServerEvent:Connect(function(attacker, targetPlayer)
 
 	-- Calculate damage
 	local dmg = BASE_DAMAGE
-	-- Weapon bonus
-	local shopF = ReplicatedStorage:FindFirstChild("Shop")
-	local weaponMult = 1.0
-	-- (in full version wire to ShopSystem equipment table)
+	-- Weapon damage multiplier from equipped weapon
+	local WEAPON_DAMAGE = {
+		fists=1.0, sword=1.8, axe=2.5, katana=2.2, scythe=3.5,
+		laser=4.0, raygun=5.0, noob_tube=7.0, nuke=9.0, banana=1.5, celestial=8.0
+	}
+	local equip = _G.playerEquipment and _G.playerEquipment[aId] or {}
+	local weaponMult = WEAPON_DAMAGE[equip.weapon or "fists"] or 1.0
+	dmg = dmg * weaponMult
+
+	-- Armor defense reduction
+	local ARMOR_DEF = {none=0,leather=0.1,chain=0.2,iron=0.3,gold=0.4,shadow=0.45,celestial=0.6}
+	local targetEquip = _G.playerEquipment and _G.playerEquipment[targetPlayer.UserId] or {}
+	local defMult = 1.0 - (ARMOR_DEF[targetEquip.armor or "none"] or 0)
+	dmg = dmg * defMult
 
 	-- Block reduction
 	if blocking[targetPlayer.UserId] then

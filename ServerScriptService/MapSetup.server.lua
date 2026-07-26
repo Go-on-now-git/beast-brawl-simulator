@@ -484,3 +484,98 @@ plbl.Font = Enum.Font.Gotham
 plbl.Parent = psg
 
 print("[MapSetup] 🎰 Casino building added!")
+
+-- ============================================================
+-- VIRAL BORDER — Rotating neon rainbow wall they can't stop watching
+-- ============================================================
+local borderFolder = Instance.new("Folder")
+borderFolder.Name = "ViralBorder"
+borderFolder.Parent = workspace
+
+local BORDER = 256
+local BORDER_H = 60
+local SEGMENTS = 64
+local borderParts = {}
+
+-- Build segmented border (all 4 sides, each side = 16 parts)
+local sides = {
+	{axis="X", sign=1,  face="Z", size=Vector3.new(BORDER/SEGMENTS*4, BORDER_H, 4)},
+	{axis="X", sign=-1, face="Z", size=Vector3.new(BORDER/SEGMENTS*4, BORDER_H, 4)},
+	{axis="Z", sign=1,  face="X", size=Vector3.new(4, BORDER_H, BORDER/SEGMENTS*4)},
+	{axis="Z", sign=-1, face="X", size=Vector3.new(4, BORDER_H, BORDER/SEGMENTS*4)},
+}
+
+for sIdx, side in ipairs(sides) do
+	for i = 1, SEGMENTS/4 do
+		local pos
+		local t = (i - 0.5) / (SEGMENTS/4)
+		local coord = (t - 0.5) * BORDER
+		if side.axis == "X" then
+			pos = Vector3.new(coord, BORDER_H/2, side.sign * BORDER/2)
+		else
+			pos = Vector3.new(side.sign * BORDER/2, BORDER_H/2, coord)
+		end
+
+		local p = Instance.new("Part")
+		p.Anchored = true
+		p.CanCollide = true
+		p.Size = side.size
+		p.CFrame = CFrame.new(pos)
+		p.Material = Enum.Material.Neon
+		p.Transparency = 0.2
+		p.CastShadow = false
+		p.Parent = borderFolder
+		table.insert(borderParts, {part=p, index=(sIdx-1)*(SEGMENTS/4)+i})
+	end
+end
+
+-- Rainbow wave animation — each segment shifts hue based on position + time
+spawn(function()
+	local t = 0
+	while true do
+		t = t + 0.04
+		for _, data in ipairs(borderParts) do
+			local hue = ((data.index / #borderParts) + t * 0.3) % 1
+			data.part.Color = Color3.fromHSV(hue, 1, 1)
+			-- Pulse transparency
+			data.part.Transparency = 0.1 + math.abs(math.sin(t * 2 + data.index * 0.3)) * 0.5
+		end
+		wait(0.03)
+	end
+end)
+
+-- Corner pillars at border — massive neon obelisks
+local corners = {{BORDER/2,BORDER/2},{-BORDER/2,BORDER/2},{BORDER/2,-BORDER/2},{-BORDER/2,-BORDER/2}}
+for _, c in ipairs(corners) do
+	local obelisk = Instance.new("Part")
+	obelisk.Anchored = true
+	obelisk.Size = Vector3.new(8, 100, 8)
+	obelisk.CFrame = CFrame.new(c[1], 50, c[2])
+	obelisk.Material = Enum.Material.Neon
+	obelisk.Color = Color3.fromRGB(255,255,255)
+	obelisk.CanCollide = true
+	obelisk.Parent = borderFolder
+
+	-- Spinning orb on top
+	local orb = Instance.new("Part")
+	orb.Anchored = true
+	orb.Shape = Enum.PartType.Ball
+	orb.Size = Vector3.new(14,14,14)
+	orb.CFrame = CFrame.new(c[1], 105, c[2])
+	orb.Material = Enum.Material.Neon
+	orb.CanCollide = false
+	orb.Parent = borderFolder
+
+	-- Orb color pulse
+	spawn(function()
+		local h = math.random()
+		while orb and orb.Parent do
+			h = (h + 0.01) % 1
+			orb.Color = Color3.fromHSV(h, 1, 1)
+			obelisk.Color = Color3.fromHSV((h+0.5)%1, 1, 1)
+			wait(0.05)
+		end
+	end)
+end
+
+print("[MapSetup] 🌈 Viral rainbow border active!")
