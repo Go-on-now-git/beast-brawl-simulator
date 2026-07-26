@@ -156,6 +156,7 @@ local COMMANDS = {
 }
 
 local COLS = 2
+local allCmdBtns = {}
 for i, cmd in ipairs(COMMANDS) do
 	local row = math.ceil(i/COLS)
 	local col = ((i-1) % COLS)
@@ -170,6 +171,7 @@ for i, cmd in ipairs(COMMANDS) do
 	btn.BorderSizePixel = 0
 	btn.Parent = panel
 	Instance.new("UICorner",btn).CornerRadius = UDim.new(0,8)
+	table.insert(allCmdBtns, btn)
 
 	btn.MouseButton1Click:Connect(function()
 		if not selectedTarget and cmd.cmd ~= ":announce" then
