@@ -182,10 +182,28 @@ for i, cmd in ipairs(COMMANDS) do
 		setStatus("✅ " .. cmd.label .. " → " .. (selectedTarget or "all"), Color3.fromRGB(100,255,100))
 		-- Fire via chat
 		-- We use a RemoteEvent approach instead
-		local adminF = ReplicatedStorage:FindFirstChild("AdminExec")
-		if adminF then adminF:FireServer(cmd.cmd, args) end
+		-- Wait for AdminExec (server may not have created it yet)
+		local adminF = ReplicatedStorage:WaitForChild("AdminExec", 10)
+		if adminF then
+			adminF:FireServer(cmd.cmd, args)
+		else
+			setStatus("❌ Server not ready yet, try again", Color3.fromRGB(255,80,80))
+		end
 	end)
 end
+
+-- Enter key on amount box — re-fires last command
+local lastCmd = nil
+amtBox.FocusLost:Connect(function(enterPressed)
+	if enterPressed and lastCmd then
+		local args = lastCmd.args()
+		local adminF = ReplicatedStorage:WaitForChild("AdminExec", 5)
+		if adminF then
+			adminF:FireServer(lastCmd.cmd, args)
+			setStatus("✅ " .. lastCmd.label .. " submitted!", Color3.fromRGB(100,255,100))
+		end
+	end
+end)
 
 -- Close btn
 local closeBtn = Instance.new("TextButton")
