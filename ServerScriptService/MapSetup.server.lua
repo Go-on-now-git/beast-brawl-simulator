@@ -690,7 +690,7 @@ local mallFolder = Instance.new("Folder")
 mallFolder.Name = "ShoppingMall"
 mallFolder.Parent = workspace
 
-local MALL_X, MALL_Z = 0, 200
+local MALL_X, MALL_Z = 0, 90
 local MALL_W, MALL_D, MALL_H = 120, 60, 20
 
 -- Mall exterior shell
