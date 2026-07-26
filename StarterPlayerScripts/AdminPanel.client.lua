@@ -220,17 +220,34 @@ closeBtn.Parent = panel
 Instance.new("UICorner",closeBtn).CornerRadius = UDim.new(0,8)
 
 local open = false
+local HIDE_GUIS = {"CasinoGui","ShopGui","LeaderboardGui","DamageCounterGui","MainHUD","VFX"}
+
+local function setOtherGuisVisible(visible)
+	for _, name in ipairs(HIDE_GUIS) do
+		local g = playerGui:FindFirstChild(name)
+		if g then g.Enabled = visible end
+	end
+end
+
+local function openPanel()
+	open = true
+	panel.Visible = true
+	setOtherGuisVisible(false)
+	refreshPlayers()
+	TweenService:Create(toggleBtn, TweenInfo.new(0.15), {BackgroundColor3=Color3.fromRGB(255,50,50)}):Play()
+end
+
+local function closePanel()
+	open = false
+	panel.Visible = false
+	setOtherGuisVisible(true)
+	TweenService:Create(toggleBtn, TweenInfo.new(0.15), {BackgroundColor3=Color3.fromRGB(180,0,0)}):Play()
+end
+
 toggleBtn.MouseButton1Click:Connect(function()
-	open = not open
-	panel.Visible = open
-	if open then refreshPlayers() end
-	TweenService:Create(toggleBtn, TweenInfo.new(0.15), {
-		BackgroundColor3 = open and Color3.fromRGB(255,50,50) or Color3.fromRGB(180,0,0)
-	}):Play()
+	if open then closePanel() else openPanel() end
 end)
-closeBtn.MouseButton1Click:Connect(function()
-	open = false; panel.Visible = false
-end)
+closeBtn.MouseButton1Click:Connect(closePanel)
 
 -- Wire to sidebar HUD button (may load after this script)
 spawn(function()
@@ -238,9 +255,7 @@ spawn(function()
 	local hudBtns = _G.HUDButtons
 	if hudBtns and hudBtns.admin then
 		hudBtns.admin.MouseButton1Click:Connect(function()
-			open = not open
-			panel.Visible = open
-			if open then refreshPlayers() end
+			if open then closePanel() else openPanel() end
 		end)
 	end
 end)

@@ -162,12 +162,18 @@ AdminExec.OnServerEvent:Connect(function(player, cmd, args)
 	for _, a in ipairs(args or {}) do msg = msg .. " " .. tostring(a) end
 	-- Fire through existing chat handler by triggering it directly
 	local target = findPlayer(args[1] or "")
-	local amount = tonumber(args[2] or args[3] or "0") or 0
+	-- args format from panel: {targetName, "tokens"/"coins", amountStr} or {targetName, amountStr}
+	local amount = 0
+	for _, v in ipairs(args) do
+		local n = tonumber(v)
+		if n then amount = n; break end
+	end
 
 	if cmd == ":give" then
 		if not _G.playerTokens then _G.playerTokens = {} end
 		if target then
 			_G.playerTokens[target.UserId] = (_G.playerTokens[target.UserId] or 0) + amount
+			print(string.format("[Admin] Gave %d tokens to %s (now: %d)", amount, target.Name, _G.playerTokens[target.UserId]))
 			local cf = ReplicatedStorage:FindFirstChild("Casino")
 			if cf then local tu=cf:FindFirstChild("TokenUpdate"); if tu then tu:FireClient(target, _G.playerTokens[target.UserId]) end end
 			notify(player, "✅ Gave "..amount.." tokens to "..target.Name)
