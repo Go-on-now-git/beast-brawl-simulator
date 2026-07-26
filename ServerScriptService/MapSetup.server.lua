@@ -413,3 +413,74 @@ for _, b in ipairs(bords) do
 end
 
 print("[MapSetup] 🦁 Cell Games Arena + Viral Beast Brawl loaded! #StayAbove")
+
+-- ============================================================
+-- TOKEN CASINO BUILDING
+-- ============================================================
+local casinoBuilding = Instance.new("Part")
+casinoBuilding.Name = "CasinoBuilding"
+casinoBuilding.Anchored = true
+casinoBuilding.Size = Vector3.new(40, 25, 40)
+casinoBuilding.CFrame = CFrame.new(-150, 12.5, -150)
+casinoBuilding.Color = Color3.fromRGB(80, 0, 120)
+casinoBuilding.Material = Enum.Material.Neon
+casinoBuilding.Transparency = 0.3
+casinoBuilding.Parent = workspace
+
+-- Casino roof
+local roof = Instance.new("Part")
+roof.Anchored = true
+roof.Size = Vector3.new(46, 3, 46)
+roof.CFrame = CFrame.new(-150, 26.5, -150)
+roof.Color = Color3.fromRGB(255, 150, 0)
+roof.Material = Enum.Material.Neon
+roof.Parent = workspace
+
+-- Casino sign
+local casinoSign = Instance.new("Part")
+casinoSign.Anchored = true
+casinoSign.CanCollide = false
+casinoSign.Size = Vector3.new(35, 10, 1)
+casinoSign.CFrame = CFrame.new(-150, 20, -129)
+casinoSign.Color = Color3.fromRGB(255, 180, 0)
+casinoSign.Material = Enum.Material.Neon
+casinoSign.Parent = workspace
+
+local csg = Instance.new("SurfaceGui")
+csg.Face = Enum.NormalId.Front
+csg.Parent = casinoSign
+
+local clbl = Instance.new("TextLabel")
+clbl.Size = UDim2.new(1, 0, 1, 0)
+clbl.BackgroundTransparency = 1
+clbl.Text = "🎰 TOKEN CASINO\n💰 BET YOUR TOKENS! 💰"
+clbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+clbl.TextScaled = true
+clbl.Font = Enum.Font.GothamBold
+clbl.Parent = clbl.Parent or csg
+clbl.Parent = csg
+
+-- Proximity sign (press E hint)
+local proxSign = Instance.new("Part")
+proxSign.Anchored = true
+proxSign.CanCollide = false
+proxSign.Size = Vector3.new(20, 5, 1)
+proxSign.CFrame = CFrame.new(-150, 5, -128)
+proxSign.Transparency = 0.2
+proxSign.Color = Color3.fromRGB(50, 50, 50)
+proxSign.Parent = workspace
+
+local psg = Instance.new("SurfaceGui")
+psg.Face = Enum.NormalId.Front
+psg.Parent = proxSign
+
+local plbl = Instance.new("TextLabel")
+plbl.Size = UDim2.new(1, 0, 1, 0)
+plbl.BackgroundTransparency = 1
+plbl.Text = "🎰 Press CASINO button to gamble!"
+plbl.TextColor3 = Color3.fromRGB(255, 220, 0)
+plbl.TextScaled = true
+plbl.Font = Enum.Font.Gotham
+plbl.Parent = psg
+
+print("[MapSetup] 🎰 Casino building added!")
