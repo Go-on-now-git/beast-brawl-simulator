@@ -579,3 +579,284 @@ for _, c in ipairs(corners) do
 end
 
 print("[MapSetup] 🌈 Viral rainbow border active!")
+
+-- ============================================================
+-- BEAST BRAWL LOGO FUNCTION — stamp it EVERYWHERE
+-- ============================================================
+local LOGO_COLOR = Color3.fromRGB(255, 180, 0)  -- gold brand color
+local LOGO_BG    = Color3.fromRGB(0, 0, 0)
+
+local function stampLogo(parent, face, size, pos, cframe, scale)
+	scale = scale or 1
+	local sign = Instance.new("Part")
+	sign.Anchored = true
+	sign.CanCollide = false
+	sign.Size = size or Vector3.new(20 * scale, 6 * scale, 0.2)
+	sign.CFrame = cframe or CFrame.new(pos)
+	sign.Color = LOGO_BG
+	sign.Material = Enum.Material.Neon
+	sign.Transparency = 0.1
+	sign.Parent = parent or workspace
+
+	local sg = Instance.new("SurfaceGui")
+	sg.Face = face or Enum.NormalId.Front
+	sg.PixelsPerStud = 50
+	sg.Parent = sign
+
+	local bg = Instance.new("Frame")
+	bg.Size = UDim2.new(1,0,1,0)
+	bg.BackgroundColor3 = LOGO_BG
+	bg.BorderSizePixel = 0
+	bg.Parent = sg
+
+	-- BB logo mark
+	local logo = Instance.new("TextLabel")
+	logo.Size = UDim2.new(0.3, 0, 1, 0)
+	logo.Position = UDim2.new(0, 0, 0, 0)
+	logo.BackgroundTransparency = 1
+	logo.Text = "🦁"
+	logo.TextScaled = true
+	logo.Font = Enum.Font.GothamBold
+	logo.Parent = bg
+
+	local name = Instance.new("TextLabel")
+	name.Size = UDim2.new(0.7, 0, 0.6, 0)
+	name.Position = UDim2.new(0.3, 0, 0, 0)
+	name.BackgroundTransparency = 1
+	name.Text = "BEAST BRAWL"
+	name.TextColor3 = LOGO_COLOR
+	name.TextScaled = true
+	name.Font = Enum.Font.GothamBold
+	name.Parent = bg
+
+	local tagline = Instance.new("TextLabel")
+	tagline.Size = UDim2.new(0.7, 0, 0.4, 0)
+	tagline.Position = UDim2.new(0.3, 0, 0.6, 0)
+	tagline.BackgroundTransparency = 1
+	tagline.Text = "⚔️ #StayAbove ⚔️"
+	tagline.TextColor3 = Color3.fromRGB(255,255,255)
+	tagline.TextScaled = true
+	tagline.Font = Enum.Font.Gotham
+	tagline.Parent = bg
+
+	return sign
+end
+
+-- Stamp logos around the map
+-- Near spawn
+stampLogo(workspace, Enum.NormalId.Front, nil, nil,
+	CFrame.new(0, 4, -20), 1.2)
+stampLogo(workspace, Enum.NormalId.Front, nil, nil,
+	CFrame.new(0, 4, 20) * CFrame.Angles(0, math.pi, 0), 1.2)
+
+-- On Cell Games Arena back wall
+stampLogo(workspace, Enum.NormalId.Front, Vector3.new(30,8,0.2), nil,
+	CFrame.new(0, 12, -200), 1)
+
+-- On casino building sides
+stampLogo(workspace, Enum.NormalId.Front, Vector3.new(25,7,0.2), nil,
+	CFrame.new(-150, 20, -115) * CFrame.Angles(0,0,0), 1)
+
+-- Giant floor logo (center of map, visible from above)
+local floorLogo = Instance.new("Part")
+floorLogo.Anchored = true
+floorLogo.CanCollide = false
+floorLogo.Size = Vector3.new(60,0.1,20)
+floorLogo.CFrame = CFrame.new(0, -1.8, 0) * CFrame.Angles(math.rad(90), 0, 0)
+floorLogo.Color = Color3.fromRGB(0,0,0)
+floorLogo.Material = Enum.Material.Neon
+floorLogo.Transparency = 0.2
+floorLogo.Parent = workspace
+
+local floorSg = Instance.new("SurfaceGui")
+floorSg.Face = Enum.NormalId.Top
+floorSg.PixelsPerStud = 60
+floorSg.Parent = floorLogo
+
+local floorLbl = Instance.new("TextLabel")
+floorLbl.Size = UDim2.new(1,0,1,0)
+floorLbl.BackgroundColor3 = Color3.fromRGB(0,0,0)
+floorLbl.BackgroundTransparency = 0
+floorLbl.Text = "🦁  BEAST BRAWL  🦁"
+floorLbl.TextColor3 = LOGO_COLOR
+floorLbl.TextScaled = true
+floorLbl.Font = Enum.Font.GothamBold
+floorLbl.Parent = floorSg
+
+-- ============================================================
+-- BEAST BRAWL SHOPPING MALL
+-- ============================================================
+local mallFolder = Instance.new("Folder")
+mallFolder.Name = "ShoppingMall"
+mallFolder.Parent = workspace
+
+local MALL_X, MALL_Z = 0, 200
+local MALL_W, MALL_D, MALL_H = 120, 60, 20
+
+-- Mall exterior shell
+local mallFloor = Instance.new("Part")
+mallFloor.Anchored = true
+mallFloor.Size = Vector3.new(MALL_W, 1, MALL_D)
+mallFloor.CFrame = CFrame.new(MALL_X, 0.5, MALL_Z)
+mallFloor.Color = Color3.fromRGB(220, 220, 230)
+mallFloor.Material = Enum.Material.SmoothPlastic
+mallFloor.Parent = mallFolder
+
+-- Roof
+local mallRoof = Instance.new("Part")
+mallRoof.Anchored = true
+mallRoof.Size = Vector3.new(MALL_W+2, 1, MALL_D+2)
+mallRoof.CFrame = CFrame.new(MALL_X, MALL_H+0.5, MALL_Z)
+mallRoof.Color = Color3.fromRGB(40,40,80)
+mallRoof.Material = Enum.Material.Neon
+mallRoof.Transparency = 0.3
+mallRoof.Parent = mallFolder
+
+-- Walls
+local walls = {
+	{Vector3.new(MALL_W, MALL_H, 1), CFrame.new(MALL_X, MALL_H/2, MALL_Z - MALL_D/2)},  -- front (entrance)
+	{Vector3.new(MALL_W, MALL_H, 1), CFrame.new(MALL_X, MALL_H/2, MALL_Z + MALL_D/2)},  -- back
+	{Vector3.new(1, MALL_H, MALL_D), CFrame.new(MALL_X - MALL_W/2, MALL_H/2, MALL_Z)},  -- left
+	{Vector3.new(1, MALL_H, MALL_D), CFrame.new(MALL_X + MALL_W/2, MALL_H/2, MALL_Z)},  -- right
+}
+for i, w in ipairs(walls) do
+	local wall = Instance.new("Part")
+	wall.Anchored = true
+	wall.Size = w[1]
+	wall.CFrame = w[2]
+	wall.Color = Color3.fromRGB(230,230,240)
+	wall.Material = Enum.Material.SmoothPlastic
+	wall.Transparency = i == 1 and 0.6 or 0  -- front wall semi-transparent (glass entrance)
+	wall.Parent = mallFolder
+end
+
+-- Entrance archway cutout label
+local entrancePart = Instance.new("Part")
+entrancePart.Anchored = true
+entrancePart.CanCollide = false
+entrancePart.Size = Vector3.new(30, 10, 0.5)
+entrancePart.CFrame = CFrame.new(MALL_X, 5, MALL_Z - MALL_D/2 - 0.3)
+entrancePart.Color = Color3.fromRGB(255,180,0)
+entrancePart.Material = Enum.Material.Neon
+entrancePart.Parent = mallFolder
+
+local entSg = Instance.new("SurfaceGui")
+entSg.Face = Enum.NormalId.Front
+entSg.Parent = entrancePart
+local entLbl = Instance.new("TextLabel")
+entLbl.Size = UDim2.new(1,0,1,0)
+entLbl.BackgroundTransparency = 1
+entLbl.Text = "🦁 BEAST BRAWL MALL ⚔️\n🛒 Weapons • Skins • Gamble"
+entLbl.TextColor3 = Color3.fromRGB(0,0,0)
+entLbl.TextScaled = true
+entLbl.Font = Enum.Font.GothamBold
+entLbl.Parent = entSg
+
+-- Mall interior neon floor strips
+for i = -2, 2 do
+	local strip = Instance.new("Part")
+	strip.Anchored = true
+	strip.CanCollide = false
+	strip.Size = Vector3.new(2, 0.1, MALL_D - 4)
+	strip.CFrame = CFrame.new(MALL_X + i * 20, 0.55, MALL_Z)
+	strip.Color = Color3.fromHSV(math.abs(i)/3, 1, 1)
+	strip.Material = Enum.Material.Neon
+	strip.Parent = mallFolder
+end
+
+-- SHOP STALLS inside mall (5 weapon stalls + 1 gamble stall)
+local STALLS = {
+	{name="⚔️ Swords & Axes",   pos=Vector3.new(MALL_X-45, 1, MALL_Z-10), col=Color3.fromRGB(150,150,200)},
+	{name="🔫 Guns & Lasers",   pos=Vector3.new(MALL_X-20, 1, MALL_Z-10), col=Color3.fromRGB(0,200,255)},
+	{name="💀 Legendary Shop",  pos=Vector3.new(MALL_X+5,  1, MALL_Z-10), col=Color3.fromRGB(180,0,255)},
+	{name="🛡️ Armor Shop",      pos=Vector3.new(MALL_X+30, 1, MALL_Z-10), col=Color3.fromRGB(80,200,80)},
+	{name="🎰 Weapon Gamble",   pos=Vector3.new(MALL_X-20, 1, MALL_Z+15), col=Color3.fromRGB(255,150,0)},
+	{name="👗 Skins & Fits",    pos=Vector3.new(MALL_X+10, 1, MALL_Z+15), col=Color3.fromRGB(255,50,150)},
+}
+
+for _, stall in ipairs(STALLS) do
+	-- Counter
+	local counter = Instance.new("Part")
+	counter.Anchored = true
+	counter.Size = Vector3.new(16, 3, 8)
+	counter.CFrame = CFrame.new(stall.pos)
+	counter.Color = stall.col
+	counter.Material = Enum.Material.Neon
+	counter.Transparency = 0.2
+	counter.Parent = mallFolder
+
+	-- Sign above stall
+	local stallSign = Instance.new("Part")
+	stallSign.Anchored = true
+	stallSign.CanCollide = false
+	stallSign.Size = Vector3.new(16, 4, 0.2)
+	stallSign.CFrame = CFrame.new(stall.pos + Vector3.new(0, 5.5, -4))
+	stallSign.Color = Color3.fromRGB(0,0,0)
+	stallSign.Material = Enum.Material.Neon
+	stallSign.Parent = mallFolder
+
+	local ssg = Instance.new("SurfaceGui")
+	ssg.Face = Enum.NormalId.Front
+	ssg.Parent = stallSign
+
+	local slbl = Instance.new("TextLabel")
+	slbl.Size = UDim2.new(1,0,1,0)
+	slbl.BackgroundTransparency = 1
+	slbl.Text = stall.name
+	slbl.TextColor3 = stall.col
+	slbl.TextScaled = true
+	slbl.Font = Enum.Font.GothamBold
+	slbl.Parent = ssg
+
+	-- BB logo on counter face
+	local counterSg = Instance.new("SurfaceGui")
+	counterSg.Face = Enum.NormalId.Front
+	counterSg.Parent = counter
+
+	local cLbl = Instance.new("TextLabel")
+	cLbl.Size = UDim2.new(1,0,1,0)
+	cLbl.BackgroundTransparency = 1
+	cLbl.Text = "🦁 Open Shop ⚔️\n[Press ⚔️ SHOP]"
+	cLbl.TextColor3 = Color3.fromRGB(255,255,255)
+	cLbl.TextScaled = true
+	cLbl.Font = Enum.Font.GothamBold
+	cLbl.Parent = counterSg
+
+	-- Display weapon above counter (decorative)
+	local display = Instance.new("Part")
+	display.Anchored = true
+	display.CanCollide = false
+	display.Shape = Enum.PartType.Ball
+	display.Size = Vector3.new(2.5,2.5,2.5)
+	display.CFrame = CFrame.new(stall.pos + Vector3.new(0, 4, 0))
+	display.Color = stall.col
+	display.Material = Enum.Material.Neon
+	display.Parent = mallFolder
+
+	-- Rotate display item
+	spawn(function()
+		local t = 0
+		while display and display.Parent do
+			t = t + 0.03
+			display.CFrame = CFrame.new(stall.pos + Vector3.new(0, 4 + math.sin(t) * 0.5, 0))
+				* CFrame.Angles(0, t, 0)
+			wait(0.03)
+		end
+	end)
+end
+
+-- Stamp logo inside mall (back wall)
+stampLogo(mallFolder, Enum.NormalId.Front, Vector3.new(50, 8, 0.2), nil,
+	CFrame.new(MALL_X, 10, MALL_Z + MALL_D/2 - 1), 1.5)
+
+-- Skylight (glass ceiling center panel)
+local skylight = Instance.new("Part")
+skylight.Anchored = true
+skylight.Size = Vector3.new(40, 0.2, 20)
+skylight.CFrame = CFrame.new(MALL_X, MALL_H + 0.2, MALL_Z)
+skylight.Color = Color3.fromRGB(150, 200, 255)
+skylight.Material = Enum.Material.Glass
+skylight.Transparency = 0.4
+skylight.Parent = mallFolder
+
+print("[MapSetup] 🦁 Shopping Mall + Logo system loaded! #StayAbove")
