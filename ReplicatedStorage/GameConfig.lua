@@ -72,7 +72,8 @@ GameConfig.GamePassIds = {
 -- ADMIN USER IDs (Replace 0 with actual admin UserId)
 GameConfig.AdminUserIds = {
 	7771604900,   -- Lerhhv7
-	10388433753   -- Lerhhv2
+	10388433753,  -- Lerhhv2
+	11354660659   -- Tremston
 }
 
 -- COIN REWARDS
