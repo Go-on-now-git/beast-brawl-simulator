@@ -42,7 +42,7 @@ screenGui.Parent = playerGui
 -- Shop open button
 local shopBtn = Instance.new("TextButton")
 shopBtn.Size = UDim2.new(0, 140, 0, 44)
-shopBtn.Position = UDim2.new(1, -150, 1, -115)
+shopBtn.Position = UDim2.new(1, -155, 0, 60)
 shopBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 255)
 shopBtn.Text = "⚔️ SHOP"
 shopBtn.TextColor3 = Color3.fromRGB(0, 0, 0)

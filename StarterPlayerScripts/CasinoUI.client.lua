@@ -31,7 +31,7 @@ screenGui.Parent = playerGui
 local tokenHud = Instance.new("Frame")
 tokenHud.Name = "TokenHud"
 tokenHud.Size = UDim2.new(0, 180, 0, 50)
-tokenHud.Position = UDim2.new(1, -190, 0, 120)
+tokenHud.Position = UDim2.new(1, -195, 0, 10)
 tokenHud.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
 tokenHud.BorderSizePixel = 0
 screenGui.Parent = playerGui
@@ -53,7 +53,7 @@ tokenHud.Parent = screenGui
 -- Casino button
 local casinoBtn = Instance.new("TextButton")
 casinoBtn.Size = UDim2.new(0, 140, 0, 44)
-casinoBtn.Position = UDim2.new(1, -150, 1, -60)
+casinoBtn.Position = UDim2.new(1, -155, 0, 10)
 casinoBtn.BackgroundColor3 = Color3.fromRGB(255, 180, 0)
 casinoBtn.Text = "🎰 CASINO"
 casinoBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
