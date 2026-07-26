@@ -23,7 +23,8 @@ EarnTokens.Name = "EarnTokens"
 EarnTokens.Parent = casinoFolder
 
 -- Token storage (in-memory)
-local playerTokens = {}
+if not _G.playerTokens then _G.playerTokens = {} end
+local playerTokens = _G.playerTokens
 
 local function getTokens(userId)
 	return playerTokens[userId] or 0
